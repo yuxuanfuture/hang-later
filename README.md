@@ -16,6 +16,12 @@
   Free and open source. Native macOS 14+.
 </p>
 
+<p align="center">
+  <a href="https://github.com/yuxuanfuture/hang-later/releases/latest/download/HangLater.dmg"><strong>Download for macOS</strong></a>
+  &nbsp;·&nbsp;
+  <a href="#build-from-source">Build from source</a>
+</p>
+
 ![Hang Later main window](docs/images/hang-later-en.png)
 
 ## Leave it where you can return to it.
@@ -90,9 +96,15 @@ Network | Page metadata and user-initiated browser capture; no analytics
 Price | Free
 License | MIT
 
+## Install
+
+Download [HangLater.dmg](https://github.com/yuxuanfuture/hang-later/releases/latest/download/HangLater.dmg), open it, and drag Hang Later into **Applications**. A ZIP archive is also available on the [latest release](https://github.com/yuxuanfuture/hang-later/releases/latest) page.
+
+The current community build is ad hoc signed and has not been notarized by Apple. On first launch, Control-click Hang Later in Applications, choose **Open**, then confirm **Open**. If macOS still blocks it, go to **System Settings → Privacy & Security** and choose **Open Anyway**.
+
 ## Build from source
 
-The repository currently ships source builds. Install Swift 6 through Xcode or the Command Line Tools, then run:
+Install Swift 6 through Xcode or the Command Line Tools, then run:
 
 ```sh
 git clone https://github.com/yuxuanfuture/hang-later.git

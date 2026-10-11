@@ -16,6 +16,12 @@
   免费开源。原生支持 macOS 14 及以上。
 </p>
 
+<p align="center">
+  <a href="https://github.com/yuxuanfuture/hang-later/releases/latest/download/HangLater.dmg"><strong>直接下载 macOS 版</strong></a>
+  &nbsp;·&nbsp;
+  <a href="#从源码构建">从源码构建</a>
+</p>
+
 ![Hang Later 主窗口](images/hang-later-zh.png)
 
 ## 给想做的事，留一个位置。
@@ -90,9 +96,15 @@ Hang Later 没有账号、云同步、行为统计或遥测。任务和预览都
 价格 | 免费
 许可证 | MIT
 
+## 安装
+
+下载 [HangLater.dmg](https://github.com/yuxuanfuture/hang-later/releases/latest/download/HangLater.dmg)，打开后把 Hang Later 拖进「应用程序」。[最新发布页面](https://github.com/yuxuanfuture/hang-later/releases/latest)也提供 ZIP 压缩包。
+
+当前社区构建使用 ad hoc 签名，尚未通过 Apple 公证。首次启动时，请在「应用程序」中按住 Control 点击 Hang Later，选择「打开」，然后再次确认「打开」。如果仍被拦截，可进入「系统设置 → 隐私与安全性」，点击「仍要打开」。
+
 ## 从源码构建
 
-仓库目前提供源码构建。先通过 Xcode 或 Command Line Tools 安装 Swift 6，然后运行：
+先通过 Xcode 或 Command Line Tools 安装 Swift 6，然后运行：
 
 ```sh
 git clone https://github.com/yuxuanfuture/hang-later.git

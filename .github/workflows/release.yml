@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify
+        run: |
+          bash scripts/swift.sh run HangLaterChecks
+          python3 -m unittest discover -s NativeHost -p 'test_*.py'
+          node --check ChromeExtension/popup.js
+          node --check ChromeExtension/background.js
+
+      - name: Build release artifacts
+        run: |
+          bash scripts/build-app.sh release
+          bash scripts/make-dmg.sh
+
+      - name: Upload release artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            assets="$(gh release view "${GITHUB_REF_NAME}" --json assets --jq '.assets[].name')"
+            if grep -qx 'HangLater.dmg' <<<"${assets}" && grep -qx 'HangLater.zip' <<<"${assets}"; then
+              echo "Release assets already exist; keeping the published files."
+            else
+              gh release upload "${GITHUB_REF_NAME}" \
+                build/releases/HangLater.dmg build/releases/HangLater.zip --clobber
+            fi
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              build/releases/HangLater.dmg build/releases/HangLater.zip \
+              --title "Hang Later ${GITHUB_REF_NAME#v}" --generate-notes
+          fi
