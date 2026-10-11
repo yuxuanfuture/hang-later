@@ -1,5 +1,3 @@
-<a name="readme-top"></a>
-
 <p align="center">
   <img src="docs/images/hang-later-icon.png" width="132" alt="Hang Later app icon">
 </p>
@@ -174,7 +172,7 @@ The desktop clothesline interaction is inspired by [Alejandro Buján's Tendedero
 
 ---
 
-<a name="简体中文"></a>
+## 简体中文
 
 <p align="center">
   <img src="docs/images/hang-later-icon.png" width="132" alt="Hang Later 应用图标">
@@ -187,7 +185,7 @@ The desktop clothesline interaction is inspired by [Alejandro Buján's Tendedero
 </p>
 
 <p align="center">
-  <a href="#readme-top">English</a> • <strong>简体中文</strong>
+  <a href="#hang-later">English</a> • <strong>简体中文</strong>
 </p>
 
 <p align="center">
