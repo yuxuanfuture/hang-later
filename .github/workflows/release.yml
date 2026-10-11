@@ -17,10 +17,14 @@ jobs:
       - name: Select Swift 6 toolchain
         run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
 
-      - name: Verify
+      - name: Verify Swift core
+        run: bash scripts/swift.sh run HangLaterChecks
+
+      - name: Verify native host
+        run: python3 -m unittest discover -s NativeHost -p 'test_*.py'
+
+      - name: Verify Chrome extension
         run: |
-          bash scripts/swift.sh run HangLaterChecks
-          python3 -m unittest discover -s NativeHost -p 'test_*.py'
           node --check ChromeExtension/popup.js
           node --check ChromeExtension/background.js
 
