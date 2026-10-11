@@ -1,0 +1,19 @@
+.build/
+build/
+.swiftpm/
+.DS_Store
+**/.DS_Store
+__pycache__/
+*.pyc
+*.pyo
+*.xcuserstate
+
+# Local design review evidence and superseded captures.
+design-qa.md
+desktop-light.png
+desktop-dark-en.png
+qa-comparison.png
+scripts/render-*-comparison.swift
+
+# Early reference asset; the shipping spike is rendered in SceneKit.
+Sources/HangLater/Resources/receipt-spike.png

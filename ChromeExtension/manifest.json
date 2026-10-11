@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Hang Later",
+  "version": "0.2.0",
+  "description": "把当前网页的标题、链接和画面晾起来；视频自动裁出播放器。",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1NFhTqGSuFJY2M0jxybPNSS11ggeEHuUr1zzY2DiZJg0TsAcz9qMOIJWtMtrUuQQZ8RUjANmStIcNIiKw8vIMlLMBXFVH40Mvk/C9+BN27FpqpGDGpSN6E1j0bWMZZ3S5ij/UuQG2ihWP8o9a8aHvKyfkRCtKBmQoIZMbLPfXnsTx/nCqesKghvnflQznmMNu3myXy5/r8dgoOgjLKt4qOy2qFmaq3evG2LV4eP2GDIjfROtkSDmxZ2460Hla+PV0GvWVpRAk/Fx+uXuox1zpvBn6KYUXhSv6KOtXUQjgK8LbHnnwYLU6VMksgfdCwfWDAzcXtAcFjeA5SwNjjEezwIDAQAB",
+  "permissions": ["activeTab", "tabs", "scripting", "nativeMessaging", "contextMenus"],
+  "action": { "default_title": "把这一页晾起来", "default_popup": "popup.html" },
+  "background": { "service_worker": "background.js" },
+  "icons": { "48": "icon48.png", "128": "icon128.png" }
+}
