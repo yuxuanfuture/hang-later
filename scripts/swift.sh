@@ -51,7 +51,15 @@ case "${1:-}" in
     fi
     TASK_COMMAND="$1"
     shift
-    exec swift "$TASK_COMMAND" "${FLAGS[@]}" "$@"
+    if [[ ${#FLAGS[@]} -gt 0 ]]; then
+      exec swift "$TASK_COMMAND" "${FLAGS[@]}" "$@"
+    fi
+    exec swift "$TASK_COMMAND" "$@"
     ;;
-  *) exec swift "${COMPILE_FLAGS[@]}" "$@" ;;
+  *)
+    if [[ ${#COMPILE_FLAGS[@]} -gt 0 ]]; then
+      exec swift "${COMPILE_FLAGS[@]}" "$@"
+    fi
+    exec swift "$@"
+    ;;
 esac
