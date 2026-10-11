@@ -41,6 +41,8 @@ The desktop clothesline stays tucked above the screen. Rest the pointer on the H
 
 Cards keep the proportions of their previews within a practical size range. Move them anywhere along the line, overlap them, and bring the last card you touched to the front.
 
+The desktop clothesline includes a dashed drop target, so a file, image, link, or app window is added as soon as you release it inside the marked area.
+
 ## One click back.
 
 Clicking a slip returns to its source:
@@ -54,9 +56,9 @@ Some apps do not expose an internal document or scroll-position URL. For those a
 
 ## Finish it. Keep the record.
 
-Choose **Done** on a slip to move it into the archive. Completed work can be grouped by day, week, or month, restored to the line, or deleted permanently.
+Choose **Done** on a slip to move it into the archive. Use **Complete all** or **Delete all** to clear every slip currently visible on the clothesline in one action. Completed work can be grouped by day, week, or month, restored to the line, or deleted permanently.
 
-The **Done Spike** turns the archive into a rotatable 3D receipt spike. Drag slips onto or off the spike, move them up, down, forward, back, left, or right, and keep their published and completed times.
+The **Done Spike** turns the archive into a rotatable 3D receipt spike. It only shows slips published during the current workday. In **Settings**, define a workday that can cross midnight—such as 15:00 to 03:00—so late-night work stays with the day it belongs to. Drag slips onto or off the spike, move them up, down, forward, back, left, or right, and keep their published and completed times.
 
 ![Done Spike](docs/images/done-spike-en.png)
 
@@ -67,6 +69,8 @@ Action | Result
 Click a slip | Return to its page, file, or app.
 Drag a slip | Place it freely on the clothesline. Slips may overlap.
 Choose **Done** | Move it to Completed and the Done Spike.
+Choose **Complete all** | Complete every slip currently visible on the clothesline.
+Choose **Delete all** | Permanently remove every slip currently visible on the clothesline.
 Open `…` | Edit or delete a mistakenly added task.
 Rest the pointer on the menu-bar pin | Reveal the desktop clothesline.
 `⌃⌥L` | Show or hide the desktop clothesline.

@@ -109,6 +109,24 @@ check("Archive sorts by completion time and deletion persists") { directory in
     try expect(reopened.tasks.map(\.id) == [second.id], "Deletion must survive restart")
 }
 
+check("Bulk clothesline completion and deletion persist as one operation") { directory in
+    let repository = try TaskRepository(directory: directory)
+    let first = try repository.add(title: "第一件")
+    let second = try repository.add(title: "第二件")
+    let untouched = try repository.add(title: "保留")
+    let completionDate = Date(timeIntervalSince1970: 2_000)
+    try repository.completeAll(Set([first.id, second.id]), at: completionDate)
+    try expect(repository.completed.count == 2, "Every selected pending task must be completed")
+    try expect(repository.completed.allSatisfy { $0.completedAt == completionDate && $0.isOnSpike },
+               "Bulk-completed tasks must share the action time and join the Done Spike")
+    try expect(repository.pending.map(\.id) == [untouched.id], "Unselected tasks must remain on the clothesline")
+    try repository.deleteAll(Set([untouched.id]))
+    let reopened = try TaskRepository(directory: directory)
+    try expect(reopened.pending.isEmpty, "Bulk deletion must persist after restart")
+    try expect(Set(reopened.completed.map(\.id)) == Set([first.id, second.id]),
+               "Bulk deletion must not remove completed tasks outside the selection")
+}
+
 check("Drag order persists and cannot move a pending task into the archive") { directory in
     let repository = try TaskRepository(directory: directory)
     let first = try repository.add(title: "A")
@@ -164,6 +182,30 @@ check("Completed archive groups tasks by month, week and day in newest-first ord
     try expect(weeks.map(\.tasks.count) == [1, 2, 1], "Week groups must use calendar week boundaries")
     try expect(days.count == 4, "Day grouping must separate distinct completion dates")
     try expect(months.first?.tasks.first?.title == "下周", "Tasks inside a section must be newest first")
+}
+
+check("Custom workdays filter Published time and cross midnight") { _ in
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 8 * 3600)!
+    func date(_ day: Int, _ hour: Int, _ minute: Int = 0) -> Date {
+        calendar.date(from: DateComponents(year: 2026, month: 10, day: day,
+                                           hour: hour, minute: minute))!
+    }
+
+    let overnight = WorkdaySchedule(startMinute: 8 * 60, endMinute: 2 * 60)
+    let afterMidnight = overnight.interval(containing: date(13, 1), calendar: calendar)
+    try expect(afterMidnight?.start == date(12, 8), "01:00 must belong to the workday that began the previous morning")
+    try expect(afterMidnight?.end == date(13, 2), "An early end time must resolve to the following day")
+    try expect(overnight.contains(date(12, 20), inWorkdayContaining: date(13, 1), calendar: calendar),
+               "A task published during the active workday must be eligible for Done Spike")
+    try expect(!overnight.contains(date(12, 7, 59), inWorkdayContaining: date(13, 1), calendar: calendar),
+               "A task published before the active workday must be excluded")
+    try expect(overnight.interval(containing: date(13, 3), calendar: calendar) == nil,
+               "The rest period after a workday ends must not be counted")
+
+    let fullDay = WorkdaySchedule(startMinute: 0, endMinute: 0)
+    try expect(fullDay.contains(date(12, 23, 59), inWorkdayContaining: date(12, 12), calendar: calendar),
+               "Equal start and end times must represent a 24-hour workday")
 }
 
 check("Invalid input cannot change persisted tasks") { directory in

@@ -44,12 +44,16 @@ final class AppStore: ObservableObject {
     @Published var error: String?
     @Published var screenCapturePermissionNeeded = false
     @Published var pinned = UserDefaults.standard.bool(forKey: "linePinned")
+    @Published var showingSettings = false
     @Published var dragTargeted = false
     @Published var draggingTaskID: UUID?
     @Published var dragLocation: CGPoint?
     @Published var dragSurface: DragSurface?
     @Published var language = AppLanguage(rawValue: UserDefaults.standard.string(forKey: "appLanguage") ?? "zh") ?? .zh
     @Published var appearance = AppAppearance(rawValue: UserDefaults.standard.string(forKey: "appAppearance") ?? "light") ?? .light
+    @Published private(set) var workdayStartMinute: Int
+    @Published private(set) var workdayEndMinute: Int
+    @Published private(set) var workdayNow = Date()
     var showDesktopLine: (() -> Void)?
     var showMainWindow: (() -> Void)?
     var onExternalDropAccepted: (() -> Void)?
@@ -58,18 +62,24 @@ final class AppStore: ObservableObject {
     private var metadataProviders: [UUID: LPMetadataProvider] = [:]
     private var messageTimer: Timer?
     private var inboxTimer: Timer?
+    private var workdayTimer: Timer?
     private var previewCache: [String: NSImage] = [:]
     private var receiptFrames: [DragSurface: CGRect] = [:]
     private var recentWindowImports: [String: Date] = [:]
 
     init(directory: URL) {
         self.directory = directory
+        workdayStartMinute = UserDefaults.standard.object(forKey: "workdayStartMinute") as? Int ?? 0
+        workdayEndMinute = UserDefaults.standard.object(forKey: "workdayEndMinute") as? Int ?? 0
         do { repository = try TaskRepository(directory: directory); reload() }
         catch { self.error = error.localizedDescription }
         try? FileManager.default.createDirectory(at: previewDirectory, withIntermediateDirectories: true)
         try? FileManager.default.createDirectory(at: inboxDirectory, withIntermediateDirectories: true)
         inboxTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.importInbox() }
+        }
+        workdayTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.workdayNow = Date() }
         }
         importInbox()
     }
@@ -78,8 +88,16 @@ final class AppStore: ObservableObject {
     var inboxDirectory: URL { directory.appendingPathComponent("Inbox", isDirectory: true) }
     var pending: [HangingTask] { tasks.filter { !$0.isCompleted } }
     var completed: [HangingTask] { tasks.filter(\.isCompleted).sorted { $0.completedAt! > $1.completedAt! } }
-    var spiked: [HangingTask] { completed.filter(\.isOnSpike) }
-    var offSpike: [HangingTask] { completed.filter { !$0.isOnSpike } }
+    var workdaySchedule: WorkdaySchedule {
+        WorkdaySchedule(startMinute: workdayStartMinute, endMinute: workdayEndMinute)
+    }
+    var currentWorkdayInterval: DateInterval? { workdaySchedule.interval(containing: workdayNow) }
+    var spikeEligibleCompleted: [HangingTask] {
+        guard let interval = currentWorkdayInterval else { return [] }
+        return completed.filter { $0.createdAt >= interval.start && $0.createdAt < interval.end }
+    }
+    var spiked: [HangingTask] { spikeEligibleCompleted.filter(\.isOnSpike) }
+    var offSpike: [HangingTask] { spikeEligibleCompleted.filter { !$0.isOnSpike } }
     var filtered: [HangingTask] {
         let source: [HangingTask]
         switch destination {
@@ -100,6 +118,18 @@ final class AppStore: ObservableObject {
     func toggleAppearance() {
         appearance = appearance == .light ? .dark : .light
         UserDefaults.standard.set(appearance.rawValue, forKey: "appAppearance")
+    }
+
+    func updateWorkday(startMinute: Int, endMinute: Int, persist: Bool = true) {
+        let schedule = WorkdaySchedule(startMinute: startMinute, endMinute: endMinute)
+        workdayStartMinute = schedule.startMinute
+        workdayEndMinute = schedule.endMinute
+        workdayNow = Date()
+        if persist {
+            UserDefaults.standard.set(schedule.startMinute, forKey: "workdayStartMinute")
+            UserDefaults.standard.set(schedule.endMinute, forKey: "workdayEndMinute")
+            notify(text("工作日时间已更新。", "Workday hours updated."))
+        }
     }
 
     func presentAddOptions() {
@@ -161,6 +191,16 @@ final class AppStore: ObservableObject {
         if perform({ try $0.complete(task.id) }) { notify(text("做完了，已收进「已完成」。", "Completed and moved to the archive.")) }
     }
 
+    func completeAll(_ candidates: [HangingTask]) {
+        let selected = candidates.filter { !$0.isCompleted }
+        let ids = Set(selected.map(\.id))
+        guard !ids.isEmpty else { return }
+        if perform({ try $0.completeAll(ids) }) {
+            notify(text("已完成当前全部 \(selected.count) 件任务。",
+                        "Completed all \(selected.count) visible tasks."))
+        }
+    }
+
     func place(_ task: HangingTask, lineX: Double) {
         _ = perform { try $0.place(task.id, lineX: lineX) }
     }
@@ -219,6 +259,20 @@ final class AppStore: ObservableObject {
         if perform({ try $0.delete(task.id) }), let file = task.previewFile {
             previewCache[file] = nil
             try? FileManager.default.removeItem(at: previewDirectory.appendingPathComponent(file))
+        }
+    }
+
+    func removeAll(_ candidates: [HangingTask]) {
+        let selected = candidates.filter { !$0.isCompleted }
+        let ids = Set(selected.map(\.id))
+        guard !ids.isEmpty else { return }
+        if perform({ try $0.deleteAll(ids) }) {
+            for file in selected.compactMap(\.previewFile) {
+                previewCache[file] = nil
+                try? FileManager.default.removeItem(at: previewDirectory.appendingPathComponent(file))
+            }
+            notify(text("已删除当前全部 \(selected.count) 件任务。",
+                        "Deleted all \(selected.count) visible tasks."))
         }
     }
     func open(_ task: HangingTask) {

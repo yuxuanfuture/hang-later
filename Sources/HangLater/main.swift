@@ -31,6 +31,38 @@ MainActor.assumeIsolated {
         exit(valid ? 0 : 2)
     }
 
+    if arguments.contains("--verify-external-drop") {
+        app.setActivationPolicy(.prohibited)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HangLater-Drop-QA-\(UUID().uuidString)", isDirectory: true)
+        let fixture = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HangLater Drop Test \(UUID().uuidString).txt")
+        do {
+            try Data("Hang Later drop zone verification".utf8).write(to: fixture, options: .atomic)
+            guard let provider = NSItemProvider(contentsOf: fixture) else {
+                throw CocoaError(.fileReadUnknown)
+            }
+            let store = AppStore(directory: directory)
+            let accepted = store.acceptDrop([provider])
+            let deadline = Date().addingTimeInterval(3)
+            while store.pending.isEmpty && Date() < deadline {
+                RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+            }
+            let imported = store.pending.contains { $0.filePath == fixture.path }
+            print(accepted && imported
+                  ? "PASS: external file drop creates a clothesline list"
+                  : "FAIL: external file drop was not imported")
+            try? FileManager.default.removeItem(at: fixture)
+            try? FileManager.default.removeItem(at: directory)
+            exit(accepted && imported ? 0 : 2)
+        } catch {
+            print("FAIL: external drop verification could not run: \(error.localizedDescription)")
+            try? FileManager.default.removeItem(at: fixture)
+            try? FileManager.default.removeItem(at: directory)
+            exit(2)
+        }
+    }
+
     if let activationIndex = arguments.firstIndex(of: "--verify-app-activation"),
        arguments.indices.contains(activationIndex + 1) {
         app.setActivationPolicy(.prohibited)
@@ -156,6 +188,9 @@ MainActor.assumeIsolated {
                 if pending.count > 1 { try repository.place(pending[1].id, lineX: 0.55) }
             }
         }
+        if arguments.contains("--workday-example") {
+            store.updateWorkday(startMinute: 8 * 60, endMinute: 2 * 60, persist: false)
+        }
         store.message = nil
         return (store, directory)
     }
@@ -205,10 +240,26 @@ MainActor.assumeIsolated {
         app.setActivationPolicy(.prohibited)
         let (store, directory) = makePreviewStore()
         let state = DesktopState(); state.setRevealed(true)
+        if arguments.contains("--drop-targeted") { state.setExternalDragTargeted(true) }
         let rendered = DesktopLineView(store: store, state: state)
             .frame(width: 1400, height: 304).background(Color.clear)
         let succeeded = writeSnapshot(rendered, size: NSSize(width: 1400, height: 304),
                                       to: arguments[desktopIndex + 1])
+        try? FileManager.default.removeItem(at: directory)
+        exit(succeeded ? 0 : 2)
+    }
+
+    if let settingsIndex = arguments.firstIndex(of: "--render-settings-preview"), arguments.indices.contains(settingsIndex + 1) {
+        app.setActivationPolicy(.prohibited)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HangLater-Settings-Preview-\(UUID().uuidString)", isDirectory: true)
+        let store = AppStore(directory: directory)
+        store.language = arguments.contains("--english") ? .en : .zh
+        store.appearance = arguments.contains("--dark") ? .dark : .light
+        store.updateWorkday(startMinute: 8 * 60, endMinute: 2 * 60, persist: false)
+        let rendered = SettingsView(store: store).frame(width: 500, height: 470)
+        let succeeded = writeSnapshot(rendered, size: NSSize(width: 500, height: 470),
+                                      to: arguments[settingsIndex + 1])
         try? FileManager.default.removeItem(at: directory)
         exit(succeeded ? 0 : 2)
     }

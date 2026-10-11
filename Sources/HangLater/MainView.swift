@@ -56,6 +56,7 @@ struct MainView: View {
         .sheet(item: $store.editingTask) { TaskEditor(store: store, task: $0) }
         .sheet(isPresented: $store.showingWindowCapture) { WindowCapturePicker(store: store) }
         .sheet(isPresented: $store.showingGuide) { BrowserGuide(store: store) }
+        .sheet(isPresented: $store.showingSettings) { SettingsView(store: store) }
         .alert(store.text("这次没能保存", "Couldn’t save this time"), isPresented: Binding(
             get: { store.error != nil },
             set: {
@@ -108,8 +109,10 @@ struct MainView: View {
                         Image(systemName: destination.symbol).frame(width: 18)
                         Text(destination.title(store.language))
                         Spacer()
-                        Text("\(destinationCount(destination))")
-                            .font(LeLaboType.label(9)).foregroundStyle(Palette.muted)
+                        if showsCount(for: destination) {
+                            Text("\(destinationCount(destination))")
+                                .font(LeLaboType.label(9)).foregroundStyle(Palette.muted)
+                        }
                     }
                     .font(LeLaboType.copy(12, bold: store.destination == destination))
                     .foregroundStyle(store.destination == destination ? Palette.green : Palette.ink.opacity(0.75))
@@ -130,8 +133,16 @@ struct MainView: View {
                     Label(store.language == .zh ? "EN" : "中文", systemImage: "character.bubble")
                 }.help(store.text("切换中文 / English", "Switch Chinese / English"))
             }.font(LeLaboType.label(11, bold: true)).foregroundStyle(Palette.muted).buttonStyle(.plain).padding(.leading, 8).padding(.bottom, 14)
-            Button { store.showingGuide = true } label: { Label(store.text("连接 Chrome", "Connect Chrome"), systemImage: "puzzlepiece.extension") }
-                .font(LeLaboType.label(11, bold: true)).foregroundStyle(Palette.muted).buttonStyle(.plain).padding(.leading, 8)
+            VStack(alignment: .leading, spacing: 14) {
+                Button { store.showingSettings = true } label: {
+                    Label(store.text("设置", "Settings"), systemImage: "gearshape")
+                }
+                Button { store.showingGuide = true } label: {
+                    Label(store.text("连接 Chrome", "Connect Chrome"), systemImage: "puzzlepiece.extension")
+                }
+            }
+            .font(LeLaboType.label(11, bold: true)).foregroundStyle(Palette.muted)
+            .buttonStyle(.plain).padding(.leading, 8)
         }.padding(.horizontal, 20).padding(.top, 51).padding(.bottom, 23)
             .frame(width: 218).background(Palette.sidebar)
     }
@@ -205,6 +216,10 @@ struct MainView: View {
         }
     }
 
+    private func showsCount(for destination: Destination) -> Bool {
+        destination == .list || destination == .spike
+    }
+
     private var linePage: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 9) {
@@ -212,8 +227,20 @@ struct MainView: View {
                 Text(store.text("正在晾着", "HANGING NOW")).font(LeLaboType.label(10, bold: true)).tracking(0.7)
                 Text(store.language == .zh ? "\(store.pending.count) 件" : "\(store.pending.count) ITEMS").font(LeLaboType.label(11)).foregroundStyle(Palette.muted)
                 Spacer()
-                Text(store.text("点卡片继续 · 自由拖动位置 · 点完成归档", "Click to continue · Place cards freely · Choose Done to archive"))
-                    .font(LeLaboType.label(11)).foregroundStyle(Palette.muted)
+                Button {
+                    store.completeAll(store.filtered)
+                } label: {
+                    Label(store.text("全部完成", "Complete all"), systemImage: "checkmark.circle")
+                }
+                .buttonStyle(QuietButton())
+                .disabled(store.filtered.isEmpty)
+                Button {
+                    store.removeAll(store.filtered)
+                } label: {
+                    Label(store.text("全部删除", "Delete all"), systemImage: "trash")
+                }
+                .buttonStyle(QuietButton())
+                .disabled(store.filtered.isEmpty)
             }.padding(.bottom, 23)
             if store.filtered.isEmpty {
                 emptyState

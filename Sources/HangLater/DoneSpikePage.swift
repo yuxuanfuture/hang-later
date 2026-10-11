@@ -24,6 +24,10 @@ struct DoneSpikePage: View {
                         .background(Palette.green, in: Rectangle())
                     Spacer()
                 }
+                Text(workdayWindowLine)
+                    .font(LeLaboType.label(8)).foregroundStyle(Palette.muted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 3)
 
                 GeometryReader { proxy in
                     spikeScene
@@ -195,7 +199,7 @@ struct DoneSpikePage: View {
 
     private func task(from items: [String]) -> HangingTask? {
         guard let raw = items.first, let id = UUID(uuidString: raw) else { return nil }
-        return store.completed.first(where: { $0.id == id })
+        return store.spikeEligibleCompleted.first(where: { $0.id == id })
     }
 
     private func timeLine(_ task: HangingTask) -> String {
@@ -212,5 +216,17 @@ struct DoneSpikePage: View {
         guard !store.search.isEmpty else { return true }
         return [task.title, task.note, task.url ?? ""]
             .joined(separator: " ").localizedCaseInsensitiveContains(store.search)
+    }
+
+    private var workdayWindowLine: String {
+        let schedule = store.workdaySchedule
+        let start = String(format: "%02d:%02d", schedule.startMinute / 60, schedule.startMinute % 60)
+        let end = String(format: "%02d:%02d", schedule.endMinute / 60, schedule.endMinute % 60)
+        let endLabel = schedule.endsOnFollowingDay ? store.text("次日 ", "NEXT DAY ") : ""
+        let prefix = store.text("仅统计发布于 ", "PUBLISHED ")
+        let suffix = store.currentWorkdayInterval == nil
+            ? store.text(" · 当前不在工作日时段", " · OUTSIDE WORKDAY")
+            : ""
+        return prefix + start + " → " + endLabel + end + suffix
     }
 }

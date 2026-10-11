@@ -133,6 +133,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let local = CGPoint(x: point.x - panel.frame.minX, y: panel.frame.maxY - point.y)
         let onDropTarget = desktop.dropTargetRect.insetBy(dx: -18, dy: -12).contains(local)
         let onControl = onDropTarget || desktop.hitRects.contains { $0.insetBy(dx: -8, dy: -6).contains(local) }
+        desktop.setExternalDragTargeted(desktop.revealed && dragging && onDropTarget)
         if dragging && inPanel { receiveDropsUntil = now.addingTimeInterval(0.5) }
         if wasPointerDragging && !dragging {
             receiveDropsUntil = now.addingTimeInterval(0.5)
@@ -210,6 +211,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                                 (store.text("显示晾衣绳  ⌃⌥L", "Show Clothesline  ⌃⌥L"), #selector(openLine)),
                                 (store.text("晾一件事…", "Hang Something…"), #selector(addTask)),
                                 (store.text("已完成", "Completed"), #selector(openCompleted)),
+                                (store.text("设置…", "Settings…"), #selector(openSettings)),
                                 (store.text("连接 Chrome…", "Connect Chrome…"), #selector(openGuide))] {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; menu.addItem(item)
         }
@@ -220,6 +222,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func setupApplicationMenu() {
         let main = NSMenu(); let appItem = NSMenuItem(); let appMenu = NSMenu()
+        let settings = NSMenuItem(title: store.text("设置…", "Settings…"), action: #selector(openSettings), keyEquivalent: ",")
+        settings.target = self; appMenu.addItem(settings); appMenu.addItem(.separator())
         appMenu.addItem(withTitle: store.text("退出 Hang Later", "Quit Hang Later"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu; main.addItem(appItem)
         let editItem = NSMenuItem(); editItem.title = store.text("编辑", "Edit"); let editMenu = NSMenu(title: store.text("编辑", "Edit"))
@@ -235,6 +239,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc private func openLine() { revealLine() }
     @objc private func addTask() { showWindow(); store.showingAddChooser = true }
     @objc private func openCompleted() { store.destination = .completed; showWindow() }
+    @objc private func openSettings() { showWindow(); store.showingSettings = true }
     @objc private func openGuide() { showWindow(); store.showingGuide = true }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 

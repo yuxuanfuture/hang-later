@@ -23,15 +23,21 @@ final class DesktopPanel: NSPanel {
 @MainActor
 final class DesktopState: ObservableObject {
     @Published private(set) var revealed = false
+    @Published private(set) var externalDragTargeted = false
     var hitRects: [CGRect] = []
     var dropTargetRect: CGRect = .zero
     func setRevealed(_ value: Bool) { if revealed != value { revealed = value } }
+    func setExternalDragTargeted(_ value: Bool) {
+        if externalDragTargeted != value { externalDragTargeted = value }
+    }
 }
 
 struct DesktopLineView: View {
     @ObservedObject var store: AppStore
     @ObservedObject var state: DesktopState
     @State private var targeted = false
+
+    private var dropHighlighted: Bool { targeted || state.externalDragTargeted }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -46,18 +52,36 @@ struct DesktopLineView: View {
             }
             HStack {
                 Spacer()
-                Label("Drag something here", systemImage: "pin")
-                    .font(LeLaboType.label(11, bold: true))
-                    .foregroundStyle(Palette.labelInk)
-                    .textCase(.uppercase)
-                    .padding(.horizontal, 17).padding(.vertical, 12)
-                    .background { LabelPaper() }
-                    .overlay(Rectangle().stroke(targeted ? Palette.labelInk : Palette.labelRule.opacity(0.72),
-                                                lineWidth: targeted ? 2 : 0.8))
-                    .background(GeometryReader { proxy in
-                        Color.clear.preference(key: DesktopDropTargetRect.self,
-                                               value: proxy.frame(in: .named("desktopLine")))
-                    })
+                VStack(spacing: 8) {
+                    Label("Drag something here", systemImage: "pin")
+                        .font(LeLaboType.label(11, bold: true))
+                        .foregroundStyle(Palette.labelInk)
+                        .textCase(.uppercase)
+                        .frame(width: 220, height: 44)
+                        .background { LabelPaper() }
+                        .overlay(Rectangle().stroke(Palette.labelRule.opacity(0.72), lineWidth: 0.8))
+
+                    Rectangle()
+                        .fill(Palette.labelPaper.opacity(dropHighlighted ? 0.82 : 0.24))
+                        .frame(width: 220, height: 54)
+                        .overlay {
+                            Rectangle().stroke(
+                                Palette.labelInk.opacity(dropHighlighted ? 0.96 : 0.78),
+                                style: StrokeStyle(lineWidth: dropHighlighted ? 2 : 1.2,
+                                                   dash: [7, 5])
+                            )
+                        }
+                        .shadow(color: .black.opacity(dropHighlighted ? 0.34 : 0.22), radius: 5, y: 2)
+                        .contentShape(Rectangle())
+                        .background(GeometryReader { proxy in
+                            Color.clear.preference(key: DesktopDropTargetRect.self,
+                                                   value: proxy.frame(in: .named("desktopLine")))
+                        })
+                        .onDrop(of: DropSupport.acceptedContentTypes, isTargeted: $targeted) {
+                            store.acceptDrop($0)
+                        }
+                        .accessibilityLabel(store.text("把内容拖到这里", "Drop something here"))
+                }
                 Spacer()
             }
             .padding(.top, 36)
@@ -70,7 +94,11 @@ struct DesktopLineView: View {
         .onPreferenceChange(DesktopDropTargetRect.self) { rect in
             Task { @MainActor in state.dropTargetRect = rect }
         }
-        .onDrop(of: DropSupport.acceptedContentTypes, isTargeted: $targeted) { store.acceptDrop($0) }
+        .onChange(of: targeted) { _, isTargeted in
+            store.dragTargeted = isTargeted
+            if isTargeted { state.setRevealed(true) }
+        }
+        .onDisappear { store.dragTargeted = false }
         .offset(y: state.revealed ? 0 : -320)
         .animation(.spring(response: 0.4, dampingFraction: 0.84), value: state.revealed)
         .preferredColorScheme(store.appearance.colorScheme)

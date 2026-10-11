@@ -151,6 +151,16 @@ public final class TaskRepository {
         try update(task)
     }
 
+    public func completeAll(_ ids: Set<UUID>, at date: Date = Date()) throws {
+        guard !ids.isEmpty else { return }
+        var next = tasks
+        for index in next.indices where ids.contains(next[index].id) && !next[index].isCompleted {
+            next[index].completedAt = date
+            next[index].spikeAttached = true
+        }
+        try commit(next)
+    }
+
     public func restore(_ id: UUID) throws {
         guard var task = tasks.first(where: { $0.id == id }) else { throw RepositoryError.missingTask }
         task.completedAt = nil
@@ -187,6 +197,11 @@ public final class TaskRepository {
 
     public func delete(_ id: UUID) throws {
         try commit(tasks.filter { $0.id != id })
+    }
+
+    public func deleteAll(_ ids: Set<UUID>) throws {
+        guard !ids.isEmpty else { return }
+        try commit(tasks.filter { !ids.contains($0.id) })
     }
 
     public func move(_ id: UUID, before other: UUID) throws {
