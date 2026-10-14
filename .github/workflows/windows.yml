@@ -9,9 +9,7 @@ on:
       - "scripts/build-windows.ps1"
       - ".github/workflows/windows.yml"
   push:
-    branches:
-      - main
-      - "codex/**"
+    branches: [main]
     paths:
       - "Windows/**"
       - "ChromeExtension/**"
