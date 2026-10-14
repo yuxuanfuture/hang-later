@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.17763.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>HangLater</AssemblyName>
+    <RootNamespace>HangLater.Windows</RootNamespace>
+    <ApplicationIcon>Resources\HangLater.ico</ApplicationIcon>
+    <Version>0.10.0</Version>
+    <FileVersion>0.10.0.30</FileVersion>
+    <AssemblyVersion>0.10.0.0</AssemblyVersion>
+    <Platforms>AnyCPU;x64;arm64</Platforms>
+    <SatelliteResourceLanguages>en;zh-Hans</SatelliteResourceLanguages>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Resource Include="Resources\HangLater.ico" />
+    <Resource Include="Resources\le-labo-paper.png" />
+    <Content Include="..\..\ChromeExtension\**\*">
+      <Link>ChromeExtension\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\LICENSE"><Link>LICENSE.txt</Link><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content>
+    <Content Include="..\..\THIRD_PARTY_NOTICES.md"><Link>THIRD_PARTY_NOTICES.md</Link><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content>
+    <Content Include="..\README.md"><Link>README-Windows.md</Link><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory></Content>
+  </ItemGroup>
+</Project>

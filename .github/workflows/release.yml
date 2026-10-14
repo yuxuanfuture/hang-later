@@ -50,3 +50,27 @@ jobs:
               build/releases/HangLater.dmg build/releases/HangLater.zip \
               --title "Hang Later ${GITHUB_REF_NAME#v}" --generate-notes
           fi
+
+  windows-build:
+    needs: build
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Build Windows x64 release
+        shell: pwsh
+        run: ./scripts/build-windows.ps1 -Runtime win-x64
+      - name: Build Windows ARM64 portable release
+        shell: pwsh
+        run: ./scripts/build-windows.ps1 -Runtime win-arm64 -SkipChecks -SkipInstaller
+      - name: Upload Windows release artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          gh release upload "$env:GITHUB_REF_NAME" `
+            build/releases/HangLater-Windows-x64-Setup.exe `
+            build/releases/HangLater-Windows-win-x64.zip `
+            build/releases/HangLater-Windows-win-arm64.zip --clobber

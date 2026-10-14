@@ -1,0 +1,43 @@
+<Application x:Class="HangLater.Windows.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ShutdownMode="OnExplicitShutdown">
+  <Application.Resources>
+    <FontFamily x:Key="DisplayFont">Bahnschrift SemiCondensed, Segoe UI</FontFamily>
+    <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas</FontFamily>
+    <SolidColorBrush x:Key="InkBrush" Color="#F1F0EA" />
+    <SolidColorBrush x:Key="MutedBrush" Color="#A9A8A2" />
+    <SolidColorBrush x:Key="PaperBrush" Color="#1F1F1F" />
+    <SolidColorBrush x:Key="PanelBrush" Color="#262626" />
+    <SolidColorBrush x:Key="RaisedBrush" Color="#2D2D2D" />
+    <SolidColorBrush x:Key="BorderBrush" Color="#44433F" />
+    <SolidColorBrush x:Key="SlipBrush" Color="#E9E3D3" />
+    <SolidColorBrush x:Key="SlipInkBrush" Color="#171715" />
+    <Style TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+      <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+    </Style>
+    <Style TargetType="Button">
+      <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Padding" Value="14,9" />
+      <Setter Property="Background" Value="{StaticResource RaisedBrush}" />
+      <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style TargetType="TextBox">
+      <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="Padding" Value="10" />
+      <Setter Property="Background" Value="#282828" />
+      <Setter Property="Foreground" Value="{StaticResource InkBrush}" />
+      <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+    </Style>
+    <Style TargetType="ComboBox">
+      <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="Padding" Value="8" />
+    </Style>
+  </Application.Resources>
+</Application>
