@@ -10,8 +10,13 @@ struct TaskEditor: View {
     @State private var note = ""
     @State private var hasDueDate = false
     @State private var dueAt = Date()
+    @State private var selectedTaskTypeID: UUID?
     @State private var validation: String?
     @FocusState private var titleFocused: Bool
+
+    private var enteredMeetingPlatform: MeetingPlatform? {
+        MeetingLink.platform(for: url.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -34,14 +39,40 @@ struct TaskEditor: View {
                 field(store.text("网页链接（可选）", "Web link (optional)")) {
                     TextField("https://…", text: $url)
                 }
+                if let platform = enteredMeetingPlatform {
+                    Label(store.text("已识别为 \(store.meetingPlatformName(platform)) 会议链接",
+                                     "Recognized as a \(store.meetingPlatformName(platform)) link"),
+                          systemImage: "video.fill")
+                        .font(LeLaboType.label(9, bold: true))
+                        .foregroundStyle(Palette.muted)
+                }
             }
             field(store.text("给未来的自己留句话（可选）", "Leave your future self a note (optional)")) {
                 TextField(store.text("例如：从 12:30 开始，记一下关键步骤", "For example: resume at 12:30 and note the key steps"), text: $note, axis: .vertical).lineLimit(3...5)
             }
+            field(store.text("任务类型", "Task type")) {
+                Picker("", selection: $selectedTaskTypeID) {
+                    Text(store.text("默认边框", "Default border")).tag(nil as UUID?)
+                    ForEach(store.taskTypes) { type in
+                        HStack {
+                            Circle().fill(Color(hex: type.colorHex)).frame(width: 9, height: 9)
+                            Text(type.name)
+                        }
+                        .tag(type.id as UUID?)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
             HStack {
-                Toggle(store.text("给它一个日期", "Add a date"), isOn: $hasDueDate).toggleStyle(.checkbox).font(LeLaboType.copy(11))
+                Toggle(store.text("添加提醒时间", "Add reminder"), isOn: $hasDueDate)
+                    .toggleStyle(.checkbox).font(LeLaboType.copy(11))
                 Spacer()
-                if hasDueDate { DatePicker("", selection: $dueAt, displayedComponents: .date).labelsHidden().frame(width: 150) }
+                if hasDueDate {
+                    DatePicker("", selection: $dueAt, displayedComponents: [.date, .hourAndMinute])
+                        .labelsHidden().frame(width: 230)
+                }
             }
             if let validation { Text(validation).font(LeLaboType.copy(11, bold: true)).foregroundStyle(Palette.danger) }
             HStack {
@@ -59,7 +90,14 @@ struct TaskEditor: View {
         .preferredColorScheme(store.appearance.colorScheme)
         .tint(Palette.green)
         .onAppear {
-            if let task { title = task.title; url = task.url ?? ""; note = task.note; hasDueDate = task.dueAt != nil; dueAt = task.dueAt ?? Date() }
+            if let task {
+                title = task.title
+                url = task.url ?? ""
+                note = task.note
+                hasDueDate = task.dueAt != nil
+                dueAt = task.dueAt ?? Date()
+                selectedTaskTypeID = task.taskTypeID
+            }
             titleFocused = true
         }
     }
@@ -83,14 +121,30 @@ struct TaskEditor: View {
             task = store.tasks.first(where: { $0.id == task.id }) ?? task
             let changedURL = task.url != link
             let oldPreview = task.previewFile
-            task.title = title; task.url = link; task.note = note; task.dueAt = hasDueDate ? dueAt : nil
+            task.title = title
+            task.url = link
+            task.note = note
+            task.dueAt = hasDueDate ? dueAt : nil
+            if task.kind != .idea {
+                if enteredMeetingPlatform != nil {
+                    task.kind = .meeting
+                } else if hasDueDate {
+                    task.kind = .reminder
+                } else if task.kind == .meeting || task.kind == .reminder {
+                    task.kind = nil
+                }
+            }
+            task.taskTypeID = selectedTaskTypeID
             if changedURL { task.previewFile = nil }
-            if store.perform({ try $0.update(task) }) {
+            if store.updateTask(task) {
                 if changedURL, let oldPreview { try? FileManager.default.removeItem(at: store.previewDirectory.appendingPathComponent(oldPreview)) }
                 if changedURL { store.refreshMetadata(task) }
                 dismiss()
             } else { validation = store.error; store.error = nil }
-        } else if store.add(title: title, url: link, note: note, dueAt: hasDueDate ? dueAt : nil) { dismiss() }
+        } else if store.add(title: title, url: link, note: note,
+                            dueAt: hasDueDate ? dueAt : nil,
+                            kind: enteredMeetingPlatform != nil ? .meeting : (hasDueDate ? .reminder : nil),
+                            taskTypeID: selectedTaskTypeID) { dismiss() }
         else { validation = store.error; store.error = nil }
     }
 }

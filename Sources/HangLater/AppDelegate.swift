@@ -2,18 +2,24 @@ import AppKit
 import SwiftUI
 import Combine
 import HangLaterCore
+import UserNotifications
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNotificationCenterDelegate {
     private struct ExternalApplicationDrag {
         let bundleIdentifier: String
         let startedAt: Date
+        let startPoint: CGPoint
+        var maximumDistance: CGFloat = 0
+        var dropTargetEnteredAt: Date?
     }
 
     private var store: AppStore!
     private var window: NSWindow!
     private var panel: DesktopPanel!
     private var statusItem: NSStatusItem!
+    private var ideaPopover: NSPopover?
+    private var reminderPopover: NSPopover?
     private var hotKey: HotKey?
     private let desktop = DesktopState()
     private var mouseTimer: Timer?
@@ -28,6 +34,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var cancellables: Set<AnyCancellable> = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // The main window starts as a normal Mac app, then returns to menu-bar-only mode when closed.
+        NSApp.setActivationPolicy(.regular)
         let arguments = ProcessInfo.processInfo.arguments
         let demo = arguments.contains("--demo")
         let directory: URL
@@ -44,6 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             catch { bridgeRepairError = error }
         }
         store = AppStore(directory: directory)
+        UNUserNotificationCenter.current().delegate = self
         if repairedCaptures > 0 { store.notify(store.text("已找回之前晾好的 \(repairedCaptures) 个网页。", "Recovered \(repairedCaptures) previously captured pages.")) }
         if let bridgeRepairError { store.error = store.text("Chrome 连接需要重新安装：", "The Chrome connection needs to be reinstalled: ") + bridgeRepairError.localizedDescription }
         if demo && store.tasks.isEmpty { seedDemo() }
@@ -61,8 +70,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let panelHost = NSHostingView(rootView: DesktopLineView(store: store, state: desktop))
         panelHost.sizingOptions = []
         panel = DesktopPanel(content: panelHost)
-        if let screen = NSScreen.main { panel.place(on: screen) }
+        if let screen = NSScreen.main {
+            panel.place(on: screen, verticalPosition: store.desktopLineVerticalPosition)
+        }
         panel.orderFrontRegardless()
+        store.desktopLinePreferencesChanged = { [weak self] keepVisible, verticalPosition in
+            self?.applyDesktopLinePreferences(keepVisible: keepVisible,
+                                              verticalPosition: verticalPosition)
+        }
         setupMenu()
         store.$language.dropFirst().sink { [weak self] _ in
             guard let self else { return }
@@ -72,7 +87,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         hotKey = HotKey { [weak self] in
             if self?.desktop.revealed == true {
                 self?.desktop.setRevealed(false); self?.revealUntil = .distantPast; self?.cancelledHover = true
-                if self?.store.pinned == true { self?.store.pinned = false; UserDefaults.standard.set(false, forKey: "linePinned") }
+                if self?.store.pinned == true {
+                    self?.store.saveDesktopLinePreferences(
+                        keepVisible: false,
+                        verticalPosition: self?.store.desktopLineVerticalPosition ?? 0
+                    )
+                }
             } else { self?.revealLine() }
         }
         if hotKey == nil { store.notify(store.text("⌃⌥L 已被占用，可用菜单栏图标呼出晾衣绳。", "⌃⌥L is already in use; use the menu bar icon to show the clothesline.")) }
@@ -81,6 +101,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         setupApplicationMenu()
         showWindow()
+        if arguments.contains("--verify-background-close") {
+            verifyBackgroundCloseBehavior()
+            return
+        }
         requestStableScreenCapturePermissionIfNeeded()
         if store.pinned { revealLine() }
     }
@@ -95,13 +119,65 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func showWindow() {
-        NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil)
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    private func moveToBackground() {
+        NSApp.setActivationPolicy(.accessory)
+        NSApp.deactivate()
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard let closingWindow = notification.object as? NSWindow,
+              closingWindow === window else { return }
+        moveToBackground()
+    }
+
+    private func verifyBackgroundCloseBehavior() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            guard let self else { return }
+            self.window.performClose(nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                let backgroundValid = !self.window.isVisible
+                    && NSApp.activationPolicy() == .accessory
+                    && self.statusItem.button != nil
+                self.showWindow()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                    let reopenValid = self.window.isVisible
+                        && NSApp.activationPolicy() == .regular
+                    print(backgroundValid && reopenValid
+                          ? "PASS: close keeps only the menu-bar pin and reopen restores the app window"
+                          : "FAIL: background close and reopen behavior is inconsistent")
+                    NSApp.terminate(nil)
+                }
+            }
+        }
     }
     private func revealLine() {
         let pointer = NSEvent.mouseLocation
-        if let screen = NSScreen.screens.first(where: { $0.frame.contains(pointer) }) ?? NSScreen.main { panel.place(on: screen) }
+        if let screen = NSScreen.screens.first(where: { $0.frame.contains(pointer) }) ?? NSScreen.main {
+            panel.place(on: screen, verticalPosition: store.desktopLineVerticalPosition)
+        }
         revealUntil = Date().addingTimeInterval(5); cancelledHover = false
         desktop.setRevealed(true); panel.orderFrontRegardless()
+    }
+
+    private func applyDesktopLinePreferences(keepVisible: Bool, verticalPosition: Double) {
+        let pointer = NSEvent.mouseLocation
+        let screen = panel.screen
+            ?? NSScreen.screens.first(where: { $0.frame.contains(pointer) })
+            ?? NSScreen.main
+        if let screen { panel.place(on: screen, verticalPosition: verticalPosition) }
+        if keepVisible {
+            revealUntil = .distantFuture
+            desktop.setRevealed(true)
+            panel.orderFrontRegardless()
+        } else {
+            revealUntil = .distantPast
+            desktop.setRevealed(false)
+        }
     }
 
     private func trackMouse() {
@@ -109,19 +185,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard let screen = NSScreen.screens.first(where: { $0.frame.contains(point) }) else { return }
         let onStatusPin = isPointerOnStatusPin(point)
         let inPanel = panel.frame.contains(point)
-        let dragging = NSEvent.pressedMouseButtons != 0
+        let dragging = NSEvent.pressedMouseButtons & 1 == 1
         if dragging && !wasPointerDragging,
            let application = NSWorkspace.shared.frontmostApplication,
            let identifier = application.bundleIdentifier,
            identifier != Bundle.main.bundleIdentifier,
            identifier != "com.apple.dock", identifier != "com.apple.WindowManager",
            Self.isInWindowTitleBar(point, processIdentifier: application.processIdentifier) {
-            activeExternalDrag = ExternalApplicationDrag(bundleIdentifier: identifier, startedAt: now)
+            activeExternalDrag = ExternalApplicationDrag(bundleIdentifier: identifier,
+                                                          startedAt: now, startPoint: point)
         }
         if onStatusPin && !cancelledHover {
             if hoverSince == nil { hoverSince = now }
             if dragging || now.timeIntervalSince(hoverSince!) > 0.45 {
-                panel.place(on: screen); desktop.setRevealed(true)
+                panel.place(on: screen, verticalPosition: store.desktopLineVerticalPosition)
+                desktop.setRevealed(true)
             }
         } else if !onStatusPin { hoverSince = nil; cancelledHover = false }
 
@@ -131,13 +209,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             if now.timeIntervalSince(awaySince!) > 0.65 { desktop.setRevealed(false) }
         } else { awaySince = nil }
         let local = CGPoint(x: point.x - panel.frame.minX, y: panel.frame.maxY - point.y)
-        let onDropTarget = desktop.dropTargetRect.insetBy(dx: -18, dy: -12).contains(local)
-        let onControl = onDropTarget || desktop.hitRects.contains { $0.insetBy(dx: -8, dy: -6).contains(local) }
-        desktop.setExternalDragTargeted(desktop.revealed && dragging && onDropTarget)
+        let insideDropTarget = desktop.dropTargetRect.contains(local)
+        let nearDropTarget = desktop.dropTargetRect.insetBy(dx: -18, dy: -12).contains(local)
+        let onControl = nearDropTarget || desktop.hitRects.contains { $0.insetBy(dx: -8, dy: -6).contains(local) }
+        if dragging, var candidate = activeExternalDrag {
+            candidate.maximumDistance = max(candidate.maximumDistance,
+                                            hypot(point.x - candidate.startPoint.x,
+                                                  point.y - candidate.startPoint.y))
+            if desktop.revealed && insideDropTarget {
+                if candidate.dropTargetEnteredAt == nil { candidate.dropTargetEnteredAt = now }
+            } else {
+                candidate.dropTargetEnteredAt = nil
+            }
+            activeExternalDrag = candidate
+        }
+        desktop.setExternalDragTargeted(desktop.revealed && dragging && insideDropTarget)
         if dragging && inPanel { receiveDropsUntil = now.addingTimeInterval(0.5) }
         if wasPointerDragging && !dragging {
             receiveDropsUntil = now.addingTimeInterval(0.5)
-            if onDropTarget, let candidate = activeExternalDrag {
+            if let candidate = activeExternalDrag,
+               WindowDropIntent.qualifies(
+                maximumDistance: Double(candidate.maximumDistance),
+                duration: now.timeIntervalSince(candidate.startedAt),
+                targetDwell: candidate.dropTargetEnteredAt.map { now.timeIntervalSince($0) },
+                isInsideTarget: desktop.revealed && insideDropTarget
+               ) {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
                     self?.captureWindowDropIfNeeded(candidate)
                 }
@@ -209,10 +305,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let menu = NSMenu()
         for (title, action) in [(store.text("打开 Hang Later", "Open Hang Later"), #selector(openMain)),
                                 (store.text("显示晾衣绳  ⌃⌥L", "Show Clothesline  ⌃⌥L"), #selector(openLine)),
-                                (store.text("晾一件事…", "Hang Something…"), #selector(addTask)),
-                                (store.text("已完成", "Completed"), #selector(openCompleted)),
-                                (store.text("设置…", "Settings…"), #selector(openSettings)),
-                                (store.text("连接 Chrome…", "Connect Chrome…"), #selector(openGuide))] {
+                                (store.text("晾一个想法…", "Hang an Idea…"), #selector(captureIdea)),
+                                (store.text("挂一个提醒…", "Hang a Reminder…"), #selector(captureReminder))] {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; menu.addItem(item)
         }
         menu.addItem(.separator())
@@ -237,11 +331,68 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     @objc private func openMain() { showWindow() }
     @objc private func openLine() { revealLine() }
-    @objc private func addTask() { showWindow(); store.showingAddChooser = true }
-    @objc private func openCompleted() { store.destination = .completed; showWindow() }
+    @objc private func captureIdea() {
+        guard let button = statusItem.button else { return }
+        ideaPopover?.performClose(nil)
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.animates = true
+        popover.contentSize = NSSize(width: 390, height: 154)
+        popover.contentViewController = NSHostingController(rootView: IdeaCaptureView(
+            store: store,
+            onHang: { [weak self] idea in self?.store.addIdea(idea) ?? false },
+            onCancel: { [weak self] in self?.ideaPopover?.performClose(nil) }
+        ))
+        ideaPopover = popover
+        DispatchQueue.main.async {
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        }
+    }
+    @objc private func captureReminder() {
+        guard let button = statusItem.button else { return }
+        reminderPopover?.performClose(nil)
+        let popover = NSPopover()
+        popover.behavior = .transient
+        popover.animates = true
+        popover.contentSize = NSSize(width: 440, height: 286)
+        popover.contentViewController = NSHostingController(rootView: ReminderCaptureView(
+            store: store,
+            onHang: { [weak self] title, link, reminderAt in
+                self?.store.addReminder(title: title, url: link, reminderAt: reminderAt) ?? false
+            },
+            onCancel: { [weak self] in self?.reminderPopover?.performClose(nil) }
+        ))
+        reminderPopover = popover
+        DispatchQueue.main.async {
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        }
+    }
     @objc private func openSettings() { showWindow(); store.showingSettings = true }
-    @objc private func openGuide() { showWindow(); store.showingGuide = true }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showWindow()
+        return true
+    }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                             willPresent notification: UNNotification,
+                                             withCompletionHandler completionHandler:
+                                                 @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound])
+    }
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                             didReceive response: UNNotificationResponse,
+                                             withCompletionHandler completionHandler: @escaping () -> Void) {
+        let rawID = response.notification.request.content.userInfo["taskID"] as? String
+        Task { @MainActor [weak self] in
+            if let rawID, let id = UUID(uuidString: rawID),
+               let task = self?.store.tasks.first(where: { $0.id == id }) {
+                self?.store.open(task)
+            }
+            completionHandler()
+        }
+    }
 
     private func seedDemo() {
         // Only used with --demo, in a separate temporary data directory.

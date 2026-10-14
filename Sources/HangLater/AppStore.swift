@@ -36,14 +36,17 @@ final class AppStore: ObservableObject {
     @Published var destination = Destination.line
     @Published var search = ""
     @Published var showingComposer = false
+    @Published var showingReminderComposer = false
     @Published var showingAddChooser = false
     @Published var showingWindowCapture = false
     @Published var editingTask: HangingTask?
+    @Published var reminderEditingTask: HangingTask?
     @Published var showingGuide = false
     @Published var message: String?
     @Published var error: String?
     @Published var screenCapturePermissionNeeded = false
-    @Published var pinned = UserDefaults.standard.bool(forKey: "linePinned")
+    @Published private(set) var pinned: Bool
+    @Published private(set) var desktopLineVerticalPosition: Double
     @Published var showingSettings = false
     @Published var dragTargeted = false
     @Published var draggingTaskID: UUID?
@@ -53,12 +56,16 @@ final class AppStore: ObservableObject {
     @Published var appearance = AppAppearance(rawValue: UserDefaults.standard.string(forKey: "appAppearance") ?? "light") ?? .light
     @Published private(set) var workdayStartMinute: Int
     @Published private(set) var workdayEndMinute: Int
+    @Published private(set) var workdayEndsOnFollowingDay: Bool
     @Published private(set) var workdayNow = Date()
+    @Published private(set) var taskTypes: [TaskTypeDefinition] = []
     var showDesktopLine: (() -> Void)?
     var showMainWindow: (() -> Void)?
     var onExternalDropAccepted: (() -> Void)?
+    var desktopLinePreferencesChanged: ((Bool, Double) -> Void)?
     let directory: URL
     private var repository: TaskRepository?
+    private var taskTypeRepository: TaskTypeRepository?
     private var metadataProviders: [UUID: LPMetadataProvider] = [:]
     private var messageTimer: Timer?
     private var inboxTimer: Timer?
@@ -69,10 +76,24 @@ final class AppStore: ObservableObject {
 
     init(directory: URL) {
         self.directory = directory
-        workdayStartMinute = UserDefaults.standard.object(forKey: "workdayStartMinute") as? Int ?? 0
-        workdayEndMinute = UserDefaults.standard.object(forKey: "workdayEndMinute") as? Int ?? 0
+        pinned = UserDefaults.standard.bool(forKey: "linePinned")
+        desktopLineVerticalPosition = DesktopLineLayout.clampedPosition(
+            UserDefaults.standard.object(forKey: "desktopLineVerticalPosition") as? Double ?? 0
+        )
+        let savedWorkdayStart = UserDefaults.standard.object(forKey: "workdayStartMinute") as? Int ?? 0
+        let savedWorkdayEnd = UserDefaults.standard.object(forKey: "workdayEndMinute") as? Int ?? 0
+        workdayStartMinute = savedWorkdayStart
+        workdayEndMinute = savedWorkdayEnd
+        workdayEndsOnFollowingDay = UserDefaults.standard.object(forKey: "workdayEndsOnFollowingDay") as? Bool
+            ?? (savedWorkdayEnd <= savedWorkdayStart)
         do { repository = try TaskRepository(directory: directory); reload() }
         catch { self.error = error.localizedDescription }
+        do {
+            taskTypeRepository = try TaskTypeRepository(directory: directory)
+            taskTypes = taskTypeRepository?.taskTypes ?? []
+        } catch {
+            self.error = localized(error)
+        }
         try? FileManager.default.createDirectory(at: previewDirectory, withIntermediateDirectories: true)
         try? FileManager.default.createDirectory(at: inboxDirectory, withIntermediateDirectories: true)
         inboxTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
@@ -82,6 +103,8 @@ final class AppStore: ObservableObject {
             MainActor.assumeIsolated { self?.workdayNow = Date() }
         }
         importInbox()
+        Task { [weak self] in await self?.refreshDocumentThumbnails() }
+        ReminderScheduler.synchronize(tasks, language: language)
     }
 
     var previewDirectory: URL { directory.appendingPathComponent("Previews", isDirectory: true) }
@@ -89,7 +112,8 @@ final class AppStore: ObservableObject {
     var pending: [HangingTask] { tasks.filter { !$0.isCompleted } }
     var completed: [HangingTask] { tasks.filter(\.isCompleted).sorted { $0.completedAt! > $1.completedAt! } }
     var workdaySchedule: WorkdaySchedule {
-        WorkdaySchedule(startMinute: workdayStartMinute, endMinute: workdayEndMinute)
+        WorkdaySchedule(startMinute: workdayStartMinute, endMinute: workdayEndMinute,
+                        endsOnFollowingDay: workdayEndsOnFollowingDay)
     }
     var currentWorkdayInterval: DateInterval? { workdaySchedule.interval(containing: workdayNow) }
     var spikeEligibleCompleted: [HangingTask] {
@@ -113,6 +137,7 @@ final class AppStore: ObservableObject {
     func toggleLanguage() {
         language = language == .zh ? .en : .zh
         UserDefaults.standard.set(language.rawValue, forKey: "appLanguage")
+        ReminderScheduler.synchronize(tasks, language: language)
     }
 
     func toggleAppearance() {
@@ -120,15 +145,75 @@ final class AppStore: ObservableObject {
         UserDefaults.standard.set(appearance.rawValue, forKey: "appAppearance")
     }
 
-    func updateWorkday(startMinute: Int, endMinute: Int, persist: Bool = true) {
-        let schedule = WorkdaySchedule(startMinute: startMinute, endMinute: endMinute)
+    func updateWorkday(startMinute: Int, endMinute: Int,
+                       endsOnFollowingDay: Bool? = nil, persist: Bool = true) {
+        let schedule = WorkdaySchedule(startMinute: startMinute, endMinute: endMinute,
+                                       endsOnFollowingDay: endsOnFollowingDay)
         workdayStartMinute = schedule.startMinute
         workdayEndMinute = schedule.endMinute
+        workdayEndsOnFollowingDay = schedule.endsOnFollowingDay
         workdayNow = Date()
         if persist {
             UserDefaults.standard.set(schedule.startMinute, forKey: "workdayStartMinute")
             UserDefaults.standard.set(schedule.endMinute, forKey: "workdayEndMinute")
+            UserDefaults.standard.set(schedule.endsOnFollowingDay,
+                                      forKey: "workdayEndsOnFollowingDay")
             notify(text("工作日时间已更新。", "Workday hours updated."))
+        }
+    }
+
+    func previewDesktopLinePreferences(keepVisible: Bool, verticalPosition: Double) {
+        pinned = keepVisible
+        desktopLineVerticalPosition = DesktopLineLayout.clampedPosition(verticalPosition)
+        desktopLinePreferencesChanged?(pinned, desktopLineVerticalPosition)
+    }
+
+    func previewDesktopLineHeight(_ verticalPosition: Double) {
+        desktopLineVerticalPosition = DesktopLineLayout.clampedPosition(verticalPosition)
+        desktopLinePreferencesChanged?(true, desktopLineVerticalPosition)
+    }
+
+    func saveDesktopLinePreferences(keepVisible: Bool, verticalPosition: Double) {
+        previewDesktopLinePreferences(keepVisible: keepVisible, verticalPosition: verticalPosition)
+        UserDefaults.standard.set(pinned, forKey: "linePinned")
+        UserDefaults.standard.set(desktopLineVerticalPosition, forKey: "desktopLineVerticalPosition")
+        notify(text("桌面晾衣绳设置已更新。", "Desktop clothesline settings updated."))
+    }
+
+    @discardableResult
+    func updateTaskTypes(_ definitions: [TaskTypeDefinition]) -> Bool {
+        guard let taskTypeRepository else {
+            error = text("任务类型文件无法读取，已停止写入以保留原始数据。",
+                         "The task type file could not be read. Writing is paused to preserve the original data.")
+            return false
+        }
+        do {
+            try taskTypeRepository.replace(with: definitions)
+            taskTypes = taskTypeRepository.taskTypes
+            let validIDs = Set(taskTypes.map(\.id))
+            if let repository {
+                try repository.retainTaskTypeAssignments(in: validIDs)
+                reload()
+            }
+            notify(text("任务类型已更新。", "Task types updated."))
+            return true
+        } catch {
+            self.error = localized(error)
+            return false
+        }
+    }
+
+    func taskType(for task: HangingTask) -> TaskTypeDefinition? {
+        guard let id = task.taskTypeID else { return nil }
+        return taskTypes.first { $0.id == id }
+    }
+
+    func setTaskType(_ typeID: UUID?, for task: HangingTask) {
+        guard typeID == nil || taskTypes.contains(where: { $0.id == typeID }),
+              var current = tasks.first(where: { $0.id == task.id }) else { return }
+        current.taskTypeID = typeID
+        if perform({ try $0.update(current) }) {
+            notify(text("任务类型已更新。", "Task type updated."))
         }
     }
 
@@ -154,7 +239,8 @@ final class AppStore: ObservableObject {
     func add(title: String, url: String?, note: String, dueAt: Date?, screenshot: Data? = nil,
              usePageTitle: Bool = false, captureID: String? = nil, filePath: String? = nil,
              appBundleIdentifier: String? = nil, appName: String? = nil,
-             resumeURL: String? = nil) -> Bool {
+             resumeURL: String? = nil, kind: HangingTaskKind? = nil,
+             taskTypeID: UUID? = nil) -> Bool {
         var previewFile: String?
         if let screenshot, let image = NSImage(data: screenshot), let data = pngData(image) {
             let filename = UUID().uuidString + ".png"
@@ -166,11 +252,12 @@ final class AppStore: ObservableObject {
             added = try $0.add(title: title, url: url, note: note, dueAt: dueAt,
                                previewFile: previewFile, captureID: captureID, filePath: filePath,
                                appBundleIdentifier: appBundleIdentifier, appName: appName,
-                               resumeURL: resumeURL)
+                               resumeURL: resumeURL, kind: kind, taskTypeID: taskTypeID)
         }
         if success, let task = added {
             notify(text("已经晾好了，等你有空再继续。", "Hung up for later."))
             if task.previewFile == nil, task.url != nil { fetchMetadata(task, updateTitle: usePageTitle) }
+            scheduleReminder(for: task)
             showDesktopLine?()
         } else if let previewFile { try? FileManager.default.removeItem(at: previewDirectory.appendingPathComponent(previewFile)) }
         return success
@@ -187,8 +274,52 @@ final class AppStore: ObservableObject {
         }
     }
 
+    @discardableResult
+    func addIdea(_ rawIdea: String) -> Bool {
+        let clean = rawIdea.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return false }
+        let firstLine = clean.split(whereSeparator: \Character.isNewline).first.map(String.init) ?? clean
+        let title = String(firstLine.prefix(160))
+        let note = clean == title ? "" : clean
+        return add(title: title, url: nil, note: note, dueAt: nil, kind: .idea)
+    }
+
+    @discardableResult
+    func addReminder(title rawTitle: String, url rawURL: String?, reminderAt: Date) -> Bool {
+        let cleanTitle = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanTitle.isEmpty else {
+            error = text("请输入要提醒的事情。", "Enter what you want to be reminded about.")
+            return false
+        }
+        let cleanURL = rawURL?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let url: URL?
+        if cleanURL.isEmpty {
+            url = nil
+        } else if let parsed = TaskInput.webURL(cleanURL) {
+            url = parsed
+        } else {
+            error = text("请输入完整的链接，或把链接留空。",
+                         "Enter a complete link, or leave the link empty.")
+            return false
+        }
+        let kind: HangingTaskKind = url.flatMap { MeetingLink.platform(for: $0) } == nil
+            ? .reminder : .meeting
+        return add(title: cleanTitle, url: url?.absoluteString, note: "",
+                   dueAt: reminderAt, kind: kind)
+    }
+
+    @discardableResult
+    func updateTask(_ task: HangingTask) -> Bool {
+        guard perform({ try $0.update(task) }) else { return false }
+        scheduleReminder(for: task)
+        return true
+    }
+
     func complete(_ task: HangingTask) {
-        if perform({ try $0.complete(task.id) }) { notify(text("做完了，已收进「已完成」。", "Completed and moved to the archive.")) }
+        if perform({ try $0.complete(task.id) }) {
+            ReminderScheduler.cancel(task.id)
+            notify(text("做完了，已收进「已完成」。", "Completed and moved to the archive."))
+        }
     }
 
     func completeAll(_ candidates: [HangingTask]) {
@@ -196,6 +327,7 @@ final class AppStore: ObservableObject {
         let ids = Set(selected.map(\.id))
         guard !ids.isEmpty else { return }
         if perform({ try $0.completeAll(ids) }) {
+            ids.forEach(ReminderScheduler.cancel)
             notify(text("已完成当前全部 \(selected.count) 件任务。",
                         "Completed all \(selected.count) visible tasks."))
         }
@@ -240,7 +372,10 @@ final class AppStore: ObservableObject {
         place(task, lineX: Double(min(max((currentCenterX + translation.width) / stageWidth, 0.02), 0.98)))
     }
     func restore(_ task: HangingTask) {
-        if perform({ try $0.restore(task.id) }) { notify(text("已重新挂回晾衣绳。", "Hung back on the clothesline.")) }
+        if perform({ try $0.restore(task.id) }) {
+            if let restored = tasks.first(where: { $0.id == task.id }) { scheduleReminder(for: restored) }
+            notify(text("已重新挂回晾衣绳。", "Hung back on the clothesline."))
+        }
     }
     func takeOffSpike(_ task: HangingTask) {
         if perform({ try $0.setSpikeAttached(false, for: task.id) }) {
@@ -255,11 +390,16 @@ final class AppStore: ObservableObject {
     func moveOnSpike(_ task: HangingTask, x: Double, y: Double, z: Double) {
         _ = perform { try $0.moveOnSpike(task.id, x: x, y: y, z: z) }
     }
+    func resizeOnSpike(_ task: HangingTask, scale: Double) {
+        _ = perform { try $0.resizeOnSpike(task.id, scale: scale) }
+    }
     func remove(_ task: HangingTask) {
-        if perform({ try $0.delete(task.id) }), let file = task.previewFile {
+        guard perform({ try $0.delete(task.id) }) else { return }
+        if let file = task.previewFile {
             previewCache[file] = nil
             try? FileManager.default.removeItem(at: previewDirectory.appendingPathComponent(file))
         }
+        ReminderScheduler.cancel(task.id)
     }
 
     func removeAll(_ candidates: [HangingTask]) {
@@ -267,6 +407,7 @@ final class AppStore: ObservableObject {
         let ids = Set(selected.map(\.id))
         guard !ids.isEmpty else { return }
         if perform({ try $0.deleteAll(ids) }) {
+            ids.forEach(ReminderScheduler.cancel)
             for file in selected.compactMap(\.previewFile) {
                 previewCache[file] = nil
                 try? FileManager.default.removeItem(at: previewDirectory.appendingPathComponent(file))
@@ -276,6 +417,15 @@ final class AppStore: ObservableObject {
         }
     }
     func open(_ task: HangingTask) {
+        // Meeting links should be handed back to macOS first so an installed meeting app
+        // can claim its universal link. This also applies to links imported from Chrome,
+        // which may carry a browser-specific resume URL.
+        if task.isMeeting, let link = task.url, let url = TaskInput.webURL(link) {
+            if !NSWorkspace.shared.open(url) {
+                error = text("无法打开这个会议链接。", "This meeting link could not be opened.")
+            }
+            return
+        }
         if let target = task.resumeURL, let url = TaskInput.resumeURL(target) {
             openResumeURL(url)
             return
@@ -445,7 +595,27 @@ final class AppStore: ObservableObject {
         }
     }
 
+    func meetingPlatformName(_ platform: MeetingPlatform) -> String {
+        switch platform {
+        case .zoom: return "Zoom"
+        case .tencentMeeting: return text("腾讯会议", "Tencent Meeting")
+        case .feishu: return text("飞书会议", "Feishu Meetings")
+        case .lark: return "Lark Meetings"
+        }
+    }
+
+    private func scheduleReminder(for task: HangingTask) {
+        ReminderScheduler.schedule(task, language: language) { [weak self] in
+            self?.notify(self?.text("任务已保存；请在系统设置中允许 Hang Later 通知。",
+                                    "Saved. Allow Hang Later notifications in System Settings.") ?? "")
+        }
+    }
+
     func sourceLabel(_ task: HangingTask) -> String {
+        if task.kind == .idea { return text("一个想法", "An idea") }
+        if let platform = task.meetingPlatform { return meetingPlatformName(platform) }
+        if task.kind == .meeting { return text("在线会议", "Online meeting") }
+        if task.isReminder { return text("提醒", "Reminder") }
         if let appName = task.appName { return appName }
         if task.isImage { return text("图片", "Image") }
         if let path = task.filePath { return URL(fileURLWithPath: path).pathExtension.uppercased() }
@@ -453,6 +623,8 @@ final class AppStore: ObservableObject {
     }
 
     func sourceSymbol(_ task: HangingTask) -> String {
+        if task.isMeeting { return "video.fill" }
+        if task.isReminder { return "bell.fill" }
         if task.appBundleIdentifier != nil { return "macwindow" }
         if task.isImage { return "photo" }
         if task.filePath != nil { return "doc" }
@@ -579,6 +751,16 @@ final class AppStore: ObservableObject {
                     screenshot: data, filePath: url.path)
             return
         }
+        if DocumentPreviewSupport.usesQuickLook(url) {
+            Task {
+                let image = await DocumentThumbnail.image(for: url)
+                    ?? NSWorkspace.shared.icon(forFile: url.path)
+                guard let data = self.pngData(image) else { return }
+                _ = self.add(title: url.lastPathComponent, url: nil, note: "", dueAt: nil,
+                             screenshot: data, filePath: url.path)
+            }
+            return
+        }
         if url.pathExtension.lowercased() == "app", let bundle = Bundle(url: url) {
             let identifier = bundle.bundleIdentifier
             let name = (bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
@@ -603,6 +785,57 @@ final class AppStore: ObservableObject {
         guard let data = pngData(icon) else { return }
         _ = add(title: url.lastPathComponent, url: nil, note: "", dueAt: nil,
                 screenshot: data, filePath: url.path)
+    }
+
+    /// Replaces the small generic icons saved by older versions with content thumbnails.
+    private func refreshDocumentThumbnails() async {
+        let candidates = tasks.compactMap { task -> (HangingTask, URL)? in
+            guard let path = task.filePath else { return nil }
+            let url = URL(fileURLWithPath: path)
+            guard DocumentPreviewSupport.usesQuickLook(url),
+                  FileManager.default.fileExists(atPath: url.path),
+                  needsDocumentThumbnail(task) else { return nil }
+            return (task, url)
+        }
+        for (task, url) in candidates {
+            guard let image = await DocumentThumbnail.image(for: url) else { continue }
+            replacePreview(for: task, with: image)
+        }
+    }
+
+    private func needsDocumentThumbnail(_ task: HangingTask) -> Bool {
+        guard let filename = task.previewFile,
+              filename == URL(fileURLWithPath: filename).lastPathComponent,
+              let image = NSImage(contentsOf: previewDirectory.appendingPathComponent(filename)) else {
+            return true
+        }
+        // Older imports saved the generic 32- or 64-point file icon. Content thumbnails are
+        // requested at 960 points, so this cleanly distinguishes legacy cards without a schema change.
+        return image.size.width <= 128 && image.size.height <= 128
+    }
+
+    private func replacePreview(for task: HangingTask, with image: NSImage) {
+        guard var current = tasks.first(where: { $0.id == task.id }),
+              current.filePath == task.filePath,
+              let data = pngData(image) else { return }
+        let oldFilename = current.previewFile
+        let filename = UUID().uuidString + ".png"
+        let destination = previewDirectory.appendingPathComponent(filename)
+        do {
+            try data.write(to: destination, options: .atomic)
+            current.previewFile = filename
+            if perform({ try $0.update(current) }) {
+                previewCache[filename] = image
+                if let oldFilename, oldFilename != filename {
+                    previewCache[oldFilename] = nil
+                    try? FileManager.default.removeItem(at: previewDirectory.appendingPathComponent(oldFilename))
+                }
+            } else {
+                try? FileManager.default.removeItem(at: destination)
+            }
+        } catch {
+            // The original icon remains usable when Quick Look's optional preview cannot be saved.
+        }
     }
 
     nonisolated private static func itemText(_ value: NSSecureCoding?) -> String? {
@@ -683,13 +916,23 @@ final class AppStore: ObservableObject {
     }
 
     private func localized(_ error: Error) -> String {
-        guard language == .en, let repositoryError = error as? RepositoryError else { return error.localizedDescription }
-        switch repositoryError {
-        case .emptyTitle: return "Give this task a name."
-        case .invalidURL: return "Enter a complete http or https web link."
-        case .missingTask: return "This task no longer exists."
-        case .unreadableData: return "The task file could not be read. The original file was preserved."
+        guard language == .en else { return error.localizedDescription }
+        if let repositoryError = error as? RepositoryError {
+            switch repositoryError {
+            case .emptyTitle: return "Give this task a name."
+            case .invalidURL: return "Enter a complete http or https web link."
+            case .missingTask: return "This task no longer exists."
+            case .unreadableData: return "The task file could not be read. The original file was preserved."
+            }
         }
+        if let taskTypeError = error as? TaskTypeRepositoryError {
+            switch taskTypeError {
+            case .emptyName: return "Give every task type a name."
+            case .duplicateName: return "Task type names must be unique."
+            case .unreadableData: return "The task type file could not be read. The original file was preserved."
+            }
+        }
+        return error.localizedDescription
     }
 
     private struct BrowserCapture: Decodable { let title: String; let url: String; let screenshot: String? }

@@ -30,6 +30,8 @@ Hang Later turns postponed work into something spatial. Hang a web page, video, 
 
 The desktop clothesline stays tucked above the screen. Rest the pointer on the Hang Later menu-bar pin, or press `⌃⌥L`, and it drops into view.
 
+In **Settings**, you can keep the desktop clothesline visible at all times and move it anywhere from the top to the bottom of the visible screen.
+
 ![Desktop clothesline](docs/images/clothesline-dark-en.png)
 
 ## Hang almost anything.
@@ -37,9 +39,12 @@ The desktop clothesline stays tucked above the screen. Rest the pointer on the H
 - **Web pages and videos** — save the title, exact URL, and visible page. When a visible video player is present, the Chrome extension crops the preview to the largest player.
 - **Images and PDFs** — drag them from Finder or another app. PDFs keep the first page as a proportional thumbnail.
 - **App windows** — drag a window title bar onto “Drag something here,” or choose a visible window from **Hang something**. Hang Later keeps a local screenshot and the app identity.
-- **Plain tasks** — write a traditional to-do with notes and an optional due date.
+- **Plain tasks** — write a traditional to-do with notes and an optional reminder.
+- **Reminders** — write what you need to do and choose a time. Leave the link empty for everyday reminders, or add an online meeting link and click the card to join. Zoom, Tencent Meeting, Feishu, and Lark links are recognized automatically.
 
 Cards keep the proportions of their previews within a practical size range. Move them anywhere along the line, overlap them, and bring the last card you touched to the front.
+
+Create and name task types in **Settings**, choose from a rich curated color palette, then assign a type while editing a task or from its `…` menu. Only the **Done** row is tinted; untyped cards keep the original paper color.
 
 The desktop clothesline includes a dashed drop target, so a file, image, link, or app window is added as soon as you release it inside the marked area.
 
@@ -56,9 +61,9 @@ Some apps do not expose an internal document or scroll-position URL. For those a
 
 ## Finish it. Keep the record.
 
-Choose **Done** on a slip to move it into the archive. Use **Complete all** or **Delete all** to clear every slip currently visible on the clothesline in one action. Completed work can be grouped by day, week, or month, restored to the line, or deleted permanently.
+Choose **Done** on a slip to move it into the archive. Use **Complete all** or **Delete all** to clear every slip currently visible on the clothesline in one action. Completed work can be grouped by day, week, or month; collapse any group to reach older records immediately. Tasks can be restored to the line or deleted permanently.
 
-The **Done Spike** turns the archive into a rotatable 3D receipt spike. It only shows slips published during the current workday. In **Settings**, define a workday that can cross midnight—such as 15:00 to 03:00—so late-night work stays with the day it belongs to. Drag slips onto or off the spike, move them up, down, forward, back, left, or right, and keep their published and completed times.
+The **Done Spike** turns the archive into a rotatable 3D receipt spike. It only shows slips published during the current workday. In **Settings**, the start always belongs to the current day, while the end can explicitly be set to the same day or the following day—for example, 15:00 to next-day 06:00—so late-night work stays with the day it belongs to. Drag slips onto or off the spike, move them up, down, forward, back, left, or right, and keep their published and completed times.
 
 ![Done Spike](docs/images/done-spike-en.png)
 
@@ -66,12 +71,12 @@ The **Done Spike** turns the archive into a rotatable 3D receipt spike. It only 
 
 Action | Result
 --- | ---
-Click a slip | Return to its page, file, or app.
+Click a slip | Return to its page, file, app, or meeting.
 Drag a slip | Place it freely on the clothesline. Slips may overlap.
 Choose **Done** | Move it to Completed and the Done Spike.
 Choose **Complete all** | Complete every slip currently visible on the clothesline.
 Choose **Delete all** | Permanently remove every slip currently visible on the clothesline.
-Open `…` | Edit or delete a mistakenly added task.
+Open `…` | Edit, add or change a reminder, or delete a mistakenly added task.
 Rest the pointer on the menu-bar pin | Reveal the desktop clothesline.
 `⌃⌥L` | Show or hide the desktop clothesline.
 `⌘N` | Open the source picker.
@@ -119,7 +124,8 @@ open build/HangLater.app
 
 The build script creates `build/HangLater.app`, generates the complete macOS icon set, bundles the Chrome extension and native host, and applies a stable local ad hoc signature. macOS may ask for Screen Recording permission after a rebuild.
 
-The app remains in the menu bar after its main window closes. Choose **Quit Hang Later** from the menu-bar menu to exit it.
+Closing the main window removes Hang Later from the Dock while the menu-bar pin keeps it running in the background. Choose **Open Hang Later** to restore the window, or **Quit Hang Later** to exit completely.
+Choose **Hang an Idea…** from the menu-bar pin to type a thought immediately, or **Hang a Reminder…** to schedule something with an optional meeting or web link.
 
 ## Connect Chrome
 
@@ -206,6 +212,8 @@ Hang Later 把暂时放下的事情变成桌面上的实体位置。网页、视
 
 桌面晾衣绳平时藏在屏幕上方。把鼠标停在菜单栏的 Hang Later 别针上，或按下 `⌃⌥L`，绳子就会落下来。
 
+你可以在「设置」中让桌面晾衣绳始终显示，并用滑杆把它放到屏幕顶部与底部之间的任意高度。
+
 ![桌面晾衣绳](docs/images/clothesline-light-zh.png)
 
 ## 什么都可以先晾起来。
@@ -213,9 +221,12 @@ Hang Later 把暂时放下的事情变成桌面上的实体位置。网页、视
 - **网页和视频**：保存标题、完整链接和当前可见画面。Chrome 页面中有可见视频时，扩展会自动裁出最大的播放器作为预览。
 - **图片和 PDF**：从 Finder 或其他 App 直接拖入。PDF 按第一页的原始比例显示缩略图。
 - **App 窗口**：把窗口标题栏拖到 “Drag something here”，或在「晾一件事」中选择可见窗口。Hang Later 会保存本地截图和 App 身份。
-- **普通待办**：记录传统任务、备注和可选截止日期。
+- **普通待办**：记录传统任务、备注和可选提醒时间。
+- **提醒事项**：写下要做的事情并选择时间。无链接时适合生活提醒；也支持在线会议链接，点击纸片即可到达。Zoom、腾讯会议、飞书和 Lark 链接会被自动识别。
 
 纸片会在合理尺寸范围内保持预览图比例。它们可以自由移动、互相重叠，最后操作的纸片会留在最上方。
+
+你可以在「设置」中创建并命名任务类型，从丰富的精选色板中选择颜色，再在编辑任务时或纸片的 `…` 菜单中指定类型。指定类型后，只有纸片底部的「完成」一行会带上对应颜色；未指定类型的纸片保持原来的纸张颜色。
 
 桌面晾衣绳带有清晰的虚线投放区。文件、图片、链接或 App 窗口只要在框内松开，就会加入晾衣绳。
 
@@ -232,9 +243,9 @@ Hang Later 把暂时放下的事情变成桌面上的实体位置。网页、视
 
 ## 做完以后，留下记录。
 
-点击纸片上的「完成」，任务会进入归档。使用「全部完成」或「全部删除」，可以一次处理晾衣绳上当前可见的所有纸片。完成记录可以按日、周、月分组，也可以重新挂回绳子或永久删除。
+点击纸片上的「完成」，任务会进入归档。使用「全部完成」或「全部删除」，可以一次处理晾衣绳上当前可见的所有纸片。完成记录可以按日、周、月分组；收起任意分组即可立即查看更早的记录。任务也可以重新挂回绳子或永久删除。
 
-「完成钉」把归档变成一个可旋转的 3D 订单钉，并且只显示当前工作日内发布的纸片。你可以在「设置」中定义跨过凌晨的工作日，例如 15:00 到次日 03:00，让深夜完成的工作仍归入正确的一天。纸片可以取下、重新串上，也可以上下、前后、左右移动，并保留发布时间和完成时间。
+「完成钉」把归档变成一个可旋转的 3D 订单钉，并且只显示当前工作日内发布的纸片。开始时间固定属于当天，结束时间可以明确选择“当天”或“第二天”，例如当天 15:00 到第二天 06:00，让深夜完成的工作仍归入正确的一天。纸片可以取下、重新串上，也可以上下、前后、左右移动，并保留发布时间和完成时间。
 
 ![完成钉](docs/images/done-spike-zh.png)
 
@@ -242,12 +253,12 @@ Hang Later 把暂时放下的事情变成桌面上的实体位置。网页、视
 
 动作 | 结果
 --- | ---
-点击纸片 | 回到对应网页、文件或 App。
+点击纸片 | 回到对应网页、文件、App 或会议。
 拖动纸片 | 自由放在绳子的任意位置，可以互相重叠。
 点击「完成」 | 移入已完成归档和完成钉。
 点击「全部完成」 | 完成晾衣绳上当前可见的全部纸片。
 点击「全部删除」 | 永久删除晾衣绳上当前可见的全部纸片。
-打开 `…` | 编辑，或删除误添加的任务。
+打开 `…` | 编辑、添加或修改提醒，或删除误添加的任务。
 鼠标停在菜单栏别针上 | 显示桌面晾衣绳。
 `⌃⌥L` | 显示或收起桌面晾衣绳。
 `⌘N` | 打开来源选择器。
@@ -295,7 +306,8 @@ open build/HangLater.app
 
 构建脚本会生成 `build/HangLater.app`、完整的 macOS 图标组、Chrome 扩展和 Native Messaging 本地主机，并使用稳定的本地 ad hoc 签名。重新构建后，macOS 可能会再次询问「屏幕录制」权限。
 
-关闭主窗口后，应用仍会在菜单栏运行。需要从菜单栏选择「退出 Hang Later」才能完全退出。
+关闭主窗口后，Hang Later 会从 Dock 隐藏，但菜单栏别针会让它继续在后台运行。选择「打开 Hang Later」即可恢复主窗口；选择「退出 Hang Later」才会完全退出。
+点击菜单栏别针中的「晾一个想法…」可以立即记录想法；点击「挂一个提醒…」可以安排生活事项，也可以附加会议或网页链接。
 
 ## 连接 Chrome
 

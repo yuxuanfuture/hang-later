@@ -7,6 +7,7 @@ struct MainView: View {
     @State private var targeted = false
     @State private var deleting: HangingTask?
     @State private var completionGrouping: CompletionGrouping = .day
+    @State private var completionSectionExpansion: [String: Bool] = [:]
 
     var body: some View {
         HStack(spacing: 0) {
@@ -53,7 +54,15 @@ struct MainView: View {
         .animation(.easeInOut(duration: 0.2), value: store.message)
         .sheet(isPresented: $store.showingAddChooser) { AddSourceSheet(store: store) }
         .sheet(isPresented: $store.showingComposer) { TaskEditor(store: store) }
+        .sheet(isPresented: $store.showingReminderComposer) {
+            ReminderCaptureView(
+                store: store,
+                onHang: store.addReminder,
+                onCancel: { store.showingReminderComposer = false }
+            )
+        }
         .sheet(item: $store.editingTask) { TaskEditor(store: store, task: $0) }
+        .sheet(item: $store.reminderEditingTask) { ReminderEditorView(store: store, task: $0) }
         .sheet(isPresented: $store.showingWindowCapture) { WindowCapturePicker(store: store) }
         .sheet(isPresented: $store.showingGuide) { BrowserGuide(store: store) }
         .sheet(isPresented: $store.showingSettings) { SettingsView(store: store) }
@@ -300,18 +309,37 @@ struct MainView: View {
             }.font(LeLaboType.label(12)).foregroundStyle(Palette.muted).padding(.bottom, 10)
             if store.filtered.isEmpty { emptyState }
             if !store.filtered.isEmpty, store.destination == .completed {
-                ForEach(completionSections) { section in
+                ForEach(Array(completionSections.enumerated()), id: \.element.id) { index, section in
                     VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Text(sectionTitle(section.start))
-                                .font(LeLaboType.display(14))
-                                .tracking(0.4)
-                                .foregroundStyle(Palette.ink.opacity(0.82))
-                            Rectangle().fill(Palette.border.opacity(0.7)).frame(height: 1)
-                            Text(store.language == .zh ? "\(section.tasks.count) 件" : "\(section.tasks.count) items")
-                                .font(LeLaboType.label(10)).foregroundStyle(Palette.muted)
-                        }.padding(.top, 5)
-                        ForEach(section.tasks) { task in taskRow(task) }
+                        Button {
+                            toggleCompletionSection(section, index: index)
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: completionSectionIsExpanded(section, index: index)
+                                      ? "chevron.down" : "chevron.right")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(Palette.muted)
+                                    .frame(width: 12)
+                                Text(sectionTitle(section.start))
+                                    .font(LeLaboType.display(14))
+                                    .tracking(0.4)
+                                    .foregroundStyle(Palette.ink.opacity(0.82))
+                                Rectangle().fill(Palette.border.opacity(0.7)).frame(height: 1)
+                                Text(sectionCountTitle(section.tasks.count))
+                                    .font(LeLaboType.label(10)).foregroundStyle(Palette.muted)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 5)
+                        .help(completionSectionIsExpanded(section, index: index)
+                              ? store.text("收起这一组", "Collapse this group")
+                              : store.text("展开这一组", "Expand this group"))
+
+                        if completionSectionIsExpanded(section, index: index) {
+                            ForEach(section.tasks) { task in taskRow(task) }
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
                     }
                 }
             } else if !store.filtered.isEmpty {
@@ -324,12 +352,33 @@ struct MainView: View {
         CompletionArchive.sections(from: store.filtered, grouping: completionGrouping)
     }
 
+    private func completionSectionKey(_ section: CompletionSection) -> String {
+        "\(completionGrouping.rawValue):\(section.start.timeIntervalSinceReferenceDate)"
+    }
+
+    private func completionSectionIsExpanded(_ section: CompletionSection, index: Int) -> Bool {
+        completionSectionExpansion[completionSectionKey(section)] ?? (index == 0)
+    }
+
+    private func toggleCompletionSection(_ section: CompletionSection, index: Int) {
+        let key = completionSectionKey(section)
+        let next = !completionSectionIsExpanded(section, index: index)
+        withAnimation(.easeInOut(duration: 0.18)) {
+            completionSectionExpansion[key] = next
+        }
+    }
+
     private func groupingTitle(_ grouping: CompletionGrouping) -> String {
         switch grouping {
         case .month: return store.text("月", "Month")
         case .week: return store.text("周", "Week")
         case .day: return store.text("日", "Day")
         }
+    }
+
+    private func sectionCountTitle(_ count: Int) -> String {
+        if store.language == .zh { return "\(count) 件" }
+        return count == 1 ? "1 item" : "\(count) items"
     }
 
     private func sectionTitle(_ start: Date) -> String {
@@ -374,7 +423,10 @@ struct MainView: View {
                             Text("·")
                             Text(store.text("完成", "Completed"))
                             Text(completed, format: .dateTime.month().day().hour().minute())
-                        } else if let due = task.dueAt { Text("·"); Text(due, format: .dateTime.month().day()); Text(store.text("到期", "due")) }
+                        } else if let due = task.dueAt {
+                            Text("·"); Image(systemName: "bell.fill")
+                            Text(due, format: .dateTime.month().day().hour().minute())
+                        }
                     }.font(LeLaboType.label(11)).foregroundStyle(Palette.muted).lineLimit(1)
                 }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
             }.buttonStyle(.plain)

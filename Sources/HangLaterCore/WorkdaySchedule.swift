@@ -1,17 +1,19 @@
 import Foundation
 
-/// A configurable daily work window. When the end is at or before the start,
-/// it belongs to the following calendar day (for example, 15:00 → 03:00).
+/// A configurable daily work window. The end can explicitly belong to either
+/// the same calendar day or the following one.
 public struct WorkdaySchedule: Equatable, Sendable {
     public let startMinute: Int
     public let endMinute: Int
+    public let endsOnFollowingDay: Bool
 
-    public init(startMinute: Int, endMinute: Int) {
-        self.startMinute = min(max(startMinute, 0), 1439)
-        self.endMinute = min(max(endMinute, 0), 1439)
+    public init(startMinute: Int, endMinute: Int, endsOnFollowingDay: Bool? = nil) {
+        let clampedStart = min(max(startMinute, 0), 1439)
+        let clampedEnd = min(max(endMinute, 0), 1439)
+        self.startMinute = clampedStart
+        self.endMinute = clampedEnd
+        self.endsOnFollowingDay = endsOnFollowingDay ?? (clampedEnd <= clampedStart)
     }
-
-    public var endsOnFollowingDay: Bool { endMinute <= startMinute }
 
     public func interval(containing date: Date,
                          calendar: Calendar = .autoupdatingCurrent) -> DateInterval? {

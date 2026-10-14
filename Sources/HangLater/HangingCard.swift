@@ -46,6 +46,17 @@ struct HangingCard: View {
     private var accent: Color { Palette.labelAccents[abs(task.tint % 4)] }
     private var width: CGFloat { dimensions.width }
     private var tilt: Double { [Double(-2.0), 1.6, -1.2, 2.1][abs(task.tint % 4)] }
+    private var ideaText: String { task.note.isEmpty ? task.title : task.note }
+    private var assignedType: TaskTypeDefinition? { store.taskType(for: task) }
+    private var typeColor: Color? { assignedType.map { Color(hex: $0.colorHex) } }
+    private var completionRowInk: Color {
+        guard let colorHex = assignedType?.colorHex else { return Palette.labelInk }
+        let red = Double((colorHex >> 16) & 255)
+        let green = Double((colorHex >> 8) & 255)
+        let blue = Double(colorHex & 255)
+        return red * 0.299 + green * 0.587 + blue * 0.114 < 145
+            ? Color.white.opacity(0.94) : Palette.labelInk
+    }
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isDragging || reduceMotion)) { timeline in
@@ -70,7 +81,7 @@ struct HangingCard: View {
                 VStack(alignment: .leading, spacing: 0) {
                     preview
                     VStack(alignment: .leading, spacing: compact ? 4 : 6) {
-                        Text(task.title)
+                        Text(task.kind == .idea ? "IDEA" : task.title)
                             .font(LeLaboType.display(compact ? 12 : 14))
                             .textCase(.uppercase)
                             .tracking(compact ? 0.45 : 0.55)
@@ -78,14 +89,16 @@ struct HangingCard: View {
                             .truncationMode(.tail)
                             .foregroundStyle(Palette.labelInk)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                        HStack(spacing: 5) {
-                            Image(systemName: store.sourceSymbol(task))
-                            Text(store.sourceLabel(task)).lineLimit(1)
-                            if task.url != nil || task.filePath != nil || task.appBundleIdentifier != nil {
-                                Spacer(minLength: 0); Image(systemName: "arrow.up.right")
+                        if task.kind != .idea {
+                            HStack(spacing: 5) {
+                                Image(systemName: store.sourceSymbol(task))
+                                Text(store.sourceLabel(task)).lineLimit(1)
+                                if task.url != nil || task.filePath != nil || task.appBundleIdentifier != nil {
+                                    Spacer(minLength: 0); Image(systemName: "arrow.up.right")
+                                }
                             }
+                            .font(LeLaboType.label(compact ? 10 : 11)).foregroundStyle(Palette.labelMuted)
                         }
-                        .font(LeLaboType.label(compact ? 10 : 11)).foregroundStyle(Palette.labelMuted)
                     }.padding(.horizontal, compact ? 10 : 13).padding(.vertical, compact ? 9 : 11)
                 }
                 .contentShape(Rectangle())
@@ -100,14 +113,27 @@ struct HangingCard: View {
                     }.buttonStyle(.plain).help(store.text("完成并收进已完成页面", "Complete and move to the archive"))
                     Spacer(minLength: 0)
                     if let due = task.dueAt {
-                        Text(due, format: .dateTime.month().day())
-                            .foregroundStyle(Palette.labelMuted)
+                        Label {
+                            Text(due, format: .dateTime.month().day().hour().minute())
+                        } icon: {
+                            Image(systemName: "bell.fill")
+                        }
+                            .foregroundStyle(completionRowInk.opacity(0.72))
                     }
                     Menu {
                         Button(store.text("编辑", "Edit")) {
                             store.editingTask = task
                             store.showMainWindow?()
                         }
+                        Button {
+                            editReminder()
+                        } label: {
+                            Label(task.dueAt == nil
+                                  ? store.text("添加提醒时间…", "Add reminder…")
+                                  : store.text("修改提醒时间…", "Change reminder…"),
+                                  systemImage: "bell")
+                        }
+                        taskTypeMenu
                         Divider()
                         Button(store.text("删除", "Delete"), role: .destructive) {
                             store.remove(task)
@@ -119,12 +145,18 @@ struct HangingCard: View {
                     .fixedSize()
                     .help(store.text("更多操作", "More actions"))
                 }
-                .font(LeLaboType.label(compact ? 9 : 10, bold: true)).foregroundStyle(Palette.labelInk)
+                .font(LeLaboType.label(compact ? 9 : 10, bold: true)).foregroundStyle(completionRowInk)
                 .padding(.horizontal, compact ? 10 : 13).padding(.vertical, compact ? 8 : 10)
+                .background {
+                    if let typeColor {
+                        typeColor.opacity(0.82)
+                    }
+                }
             }
             .background { LabelPaper().clipShape(shape) }
             .clipShape(shape)
-            .overlay(shape.stroke(dropTarget ? Palette.labelInk : Palette.labelRule.opacity(0.72), lineWidth: dropTarget ? 2 : 0.8))
+            .overlay(shape.stroke(dropTarget ? Palette.labelInk : Palette.labelRule.opacity(0.72),
+                                  lineWidth: dropTarget ? 2 : 0.8))
             .shadow(color: Color.black.opacity(isDragging ? 0.24 : (hovering ? 0.17 : 0.09)),
                     radius: isDragging ? 20 : (hovering ? 15 : 9), x: isDragging ? 5 : 1, y: isDragging ? 15 : (hovering ? 10 : 6))
         }
@@ -145,9 +177,44 @@ struct HangingCard: View {
         .contextMenu {
             Button(store.text("继续这件事", "Continue this task")) { store.open(task) }
             Button(store.text("编辑", "Edit")) { store.editingTask = task; store.showMainWindow?() }
+            Button {
+                editReminder()
+            } label: {
+                Label(task.dueAt == nil
+                      ? store.text("添加提醒时间…", "Add reminder…")
+                      : store.text("修改提醒时间…", "Change reminder…"),
+                      systemImage: "bell")
+            }
+            taskTypeMenu
             Button(store.text("完成，收起来", "Complete and archive")) { store.complete(task) }
             Divider()
             Button(store.text("删除", "Delete"), role: .destructive) { store.remove(task) }
+        }
+    }
+
+    private func editReminder() {
+        store.reminderEditingTask = task
+        store.showMainWindow?()
+    }
+
+    @ViewBuilder
+    private var taskTypeMenu: some View {
+        Menu(store.text("任务类型", "Task type")) {
+            Button {
+                store.setTaskType(nil, for: task)
+            } label: {
+                Label(store.text("默认边框", "Default border"),
+                      systemImage: task.taskTypeID == nil ? "checkmark" : "circle")
+            }
+            if !store.taskTypes.isEmpty { Divider() }
+            ForEach(store.taskTypes) { type in
+                Button {
+                    store.setTaskType(type.id, for: task)
+                } label: {
+                    Label(type.name,
+                          systemImage: task.taskTypeID == type.id ? "checkmark" : "circle.fill")
+                }
+            }
         }
     }
 
@@ -176,7 +243,8 @@ struct HangingCard: View {
             if let image = store.preview(task) {
                 GeometryReader { geo in
                     Group {
-                        if task.filePath?.lowercased().hasSuffix(".pdf") == true {
+                        if let path = task.filePath,
+                           DocumentPreviewSupport.preservesPageAspectRatio(URL(fileURLWithPath: path)) {
                             Image(nsImage: image).resizable().scaledToFit()
                         } else {
                             Image(nsImage: image).resizable().scaledToFill()
@@ -186,7 +254,20 @@ struct HangingCard: View {
                 }
             } else {
                 LabelPaper()
-                if task.url != nil || task.filePath != nil || task.appBundleIdentifier != nil {
+                if task.kind == .idea {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(ideaText)
+                            .font(LeLaboType.display(compact ? 20 : 27))
+                            .tracking(compact ? 0.25 : 0.35)
+                            .lineSpacing(compact ? 4 : 6)
+                            .foregroundStyle(Palette.labelInk)
+                            .lineLimit(compact ? 5 : 7)
+                            .minimumScaleFactor(0.7)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(compact ? 15 : 22)
+                } else if task.url != nil || task.filePath != nil || task.appBundleIdentifier != nil {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(spacing: 4) {
                             ForEach(0..<3) { _ in Circle().fill(accent.opacity(0.5)).frame(width: 4, height: 4) }

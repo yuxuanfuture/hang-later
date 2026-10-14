@@ -1,5 +1,11 @@
 import Foundation
 
+public enum HangingTaskKind: String, Codable, Sendable {
+    case idea
+    case reminder
+    case meeting
+}
+
 public struct HangingTask: Codable, Identifiable, Equatable, Sendable {
     public var id: UUID
     public var title: String
@@ -16,6 +22,10 @@ public struct HangingTask: Codable, Identifiable, Equatable, Sendable {
     public var appName: String?
     /// A URL that restores the captured app content, such as a Chrome page or Obsidian note.
     public var resumeURL: String?
+    /// Explicitly marks quick-captured ideas so a future response harness can address them.
+    public var kind: HangingTaskKind?
+    /// Optional user-defined type. The type's name and border color live in task-types.json.
+    public var taskTypeID: UUID?
     /// Horizontal position on the clothesline, expressed as a 0...1 fraction.
     public var lineX: Double?
     /// Increasing layer number lets overlapping cards keep the last-moved card on top.
@@ -27,15 +37,19 @@ public struct HangingTask: Codable, Identifiable, Equatable, Sendable {
     /// User-selected height along the spike.
     public var spikeY: Double?
     public var spikeZ: Double?
+    /// Per-slip size on the Done Spike. Nil keeps legacy tasks at 100%.
+    public var spikeScale: Double?
 
     public init(id: UUID = UUID(), title: String, url: String? = nil, note: String = "",
                 createdAt: Date = Date(), completedAt: Date? = nil, dueAt: Date? = nil,
                 previewFile: String? = nil, tint: Int = 0, captureID: String? = nil,
                 filePath: String? = nil, appBundleIdentifier: String? = nil,
                 appName: String? = nil, resumeURL: String? = nil,
+                kind: HangingTaskKind? = nil,
+                taskTypeID: UUID? = nil,
                 lineX: Double? = nil, lineLayer: Int? = nil,
                 spikeAttached: Bool? = nil, spikeX: Double? = nil, spikeY: Double? = nil,
-                spikeZ: Double? = nil) {
+                spikeZ: Double? = nil, spikeScale: Double? = nil) {
         self.id = id; self.title = title; self.url = url; self.note = note
         self.createdAt = createdAt; self.completedAt = completedAt; self.dueAt = dueAt
         self.previewFile = previewFile; self.tint = tint
@@ -44,16 +58,23 @@ public struct HangingTask: Codable, Identifiable, Equatable, Sendable {
         self.appBundleIdentifier = appBundleIdentifier
         self.appName = appName
         self.resumeURL = resumeURL
+        self.kind = kind
+        self.taskTypeID = taskTypeID
         self.lineX = lineX
         self.lineLayer = lineLayer
         self.spikeAttached = spikeAttached
         self.spikeX = spikeX
         self.spikeY = spikeY
         self.spikeZ = spikeZ
+        self.spikeScale = spikeScale
     }
 
     public var isCompleted: Bool { completedAt != nil }
     public var isOnSpike: Bool { isCompleted && (spikeAttached ?? true) }
+    public var effectiveSpikeScale: Double { min(max(spikeScale ?? 1, 0.6), 1.5) }
+    public var meetingPlatform: MeetingPlatform? { MeetingLink.platform(for: url) }
+    public var isMeeting: Bool { kind == .meeting || meetingPlatform != nil }
+    public var isReminder: Bool { kind == .reminder || (!isMeeting && dueAt != nil) }
     public var domain: String? {
         guard let url, let host = URL(string: url)?.host else { return nil }
         return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
@@ -122,7 +143,8 @@ public final class TaskRepository {
     public func add(title: String, url: String? = nil, note: String = "", dueAt: Date? = nil,
                     previewFile: String? = nil, captureID: String? = nil,
                     filePath: String? = nil, appBundleIdentifier: String? = nil,
-                    appName: String? = nil, resumeURL: String? = nil) throws -> HangingTask {
+                    appName: String? = nil, resumeURL: String? = nil,
+                    kind: HangingTaskKind? = nil, taskTypeID: UUID? = nil) throws -> HangingTask {
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanTitle.isEmpty else { throw RepositoryError.emptyTitle }
         if let url, TaskInput.webURL(url) == nil { throw RepositoryError.invalidURL }
@@ -130,7 +152,8 @@ public final class TaskRepository {
         let task = HangingTask(title: cleanTitle, url: url, note: note, dueAt: dueAt,
                                previewFile: previewFile, tint: tasks.count % 4, captureID: captureID,
                                filePath: filePath, appBundleIdentifier: appBundleIdentifier,
-                               appName: appName, resumeURL: resumeURL)
+                               appName: appName, resumeURL: resumeURL, kind: kind,
+                               taskTypeID: taskTypeID)
         try commit([task] + tasks)
         return task
     }
@@ -195,6 +218,13 @@ public final class TaskRepository {
         try update(task)
     }
 
+    public func resizeOnSpike(_ id: UUID, scale: Double) throws {
+        guard var task = tasks.first(where: { $0.id == id }) else { throw RepositoryError.missingTask }
+        guard task.isOnSpike else { return }
+        task.spikeScale = min(max(scale, 0.6), 1.5)
+        try update(task)
+    }
+
     public func delete(_ id: UUID) throws {
         try commit(tasks.filter { $0.id != id })
     }
@@ -202,6 +232,18 @@ public final class TaskRepository {
     public func deleteAll(_ ids: Set<UUID>) throws {
         guard !ids.isEmpty else { return }
         try commit(tasks.filter { !ids.contains($0.id) })
+    }
+
+    public func retainTaskTypeAssignments(in validIDs: Set<UUID>) throws {
+        var next = tasks
+        var changed = false
+        for index in next.indices {
+            if let typeID = next[index].taskTypeID, !validIDs.contains(typeID) {
+                next[index].taskTypeID = nil
+                changed = true
+            }
+        }
+        if changed { try commit(next) }
     }
 
     public func move(_ id: UUID, before other: UUID) throws {

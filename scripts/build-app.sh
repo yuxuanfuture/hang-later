@@ -31,11 +31,10 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
   <key>CFBundleExecutable</key><string>HangLater</string>
   <key>CFBundleIconFile</key><string>HangLater</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.9.8</string>
-  <key>CFBundleVersion</key><string>29</string>
+  <key>CFBundleShortVersionString</key><string>0.10.0</string>
+  <key>CFBundleVersion</key><string>30</string>
   <key>CFBundleDevelopmentRegion</key><string>zh_CN</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
-  <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSScreenCaptureUsageDescription</key><string>Hang Later 需要在你选择 App 窗口时保存一张本地预览图。</string>
   <key>NSAppleEventsUsageDescription</key><string>Hang Later 需要读取你主动晾起的 Chrome 标签页地址，以便稍后返回原页面。</string>

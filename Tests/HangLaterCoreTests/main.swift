@@ -35,6 +35,36 @@ check("An application-only drag provider is accepted") { _ in
                "The SwiftUI drop destination must register the application-bundle type")
 }
 
+check("Window capture requires a deliberate drop inside the target") { _ in
+    try expect(!WindowDropIntent.qualifies(maximumDistance: 3, duration: 0.6,
+                                           targetDwell: 0.4, isInsideTarget: true),
+               "A click or tiny title-bar movement must not capture an app")
+    try expect(!WindowDropIntent.qualifies(maximumDistance: 80, duration: 0.5,
+                                           targetDwell: 0.05, isInsideTarget: true),
+               "Passing quickly across the drop target must not capture an app")
+    try expect(!WindowDropIntent.qualifies(maximumDistance: 80, duration: 0.5,
+                                           targetDwell: 0.3, isInsideTarget: false),
+               "Releasing outside the dashed target must not capture an app")
+    try expect(WindowDropIntent.qualifies(maximumDistance: 80, duration: 0.5,
+                                          targetDwell: 0.3, isInsideTarget: true),
+               "A moved window held briefly inside the target should be captured")
+}
+
+check("Desktop clothesline height stays inside the visible screen") { _ in
+    try expect(DesktopLineLayout.verticalOrigin(visibleMinY: 40, visibleHeight: 900,
+                                                panelHeight: 300, position: 0) == 640,
+               "Top position must align the panel with the top of the visible desktop")
+    try expect(DesktopLineLayout.verticalOrigin(visibleMinY: 40, visibleHeight: 900,
+                                                panelHeight: 300, position: 1) == 40,
+               "Bottom position must keep the complete panel above the Dock")
+    try expect(DesktopLineLayout.verticalOrigin(visibleMinY: 40, visibleHeight: 900,
+                                                panelHeight: 300, position: 0.5) == 340,
+               "The slider midpoint must place the panel halfway down the available height")
+    try expect(DesktopLineLayout.clampedPosition(-2) == 0
+               && DesktopLineLayout.clampedPosition(3) == 1,
+               "Saved positions must be clamped to the screen")
+}
+
 check("Web and plain tasks survive restart with notes, dates, previews and capture IDs") { directory in
     let repository = try TaskRepository(directory: directory)
     let due = Date(timeIntervalSince1970: 1800000000)
@@ -58,6 +88,83 @@ check("Image files and app windows survive restart with their launch targets") {
     try expect(reopened.tasks.first?.resumeURL == "obsidian://open?vault=Notes&file=Draft",
                "App content restore URL must be retained")
     try expect(reopened.tasks.last?.isImage == true, "Image file tasks must remain identifiable")
+}
+
+check("Quick Look document thumbnails cover Word, PowerPoint, Excel and CSV") { _ in
+    for fileExtension in ["doc", "docx", "ppt", "pptx", "xls", "xlsx", "csv"] {
+        let url = URL(fileURLWithPath: "/tmp/document.\(fileExtension)")
+        try expect(DocumentPreviewSupport.usesQuickLook(url),
+                   ".\(fileExtension) should use the macOS Quick Look thumbnail service")
+        try expect(DocumentPreviewSupport.preservesPageAspectRatio(url),
+                   ".\(fileExtension) previews should not be cropped on the clothesline")
+    }
+    try expect(!DocumentPreviewSupport.usesQuickLook(URL(fileURLWithPath: "/tmp/photo.png")),
+               "Images should keep their existing image import path")
+    try expect(DocumentPreviewSupport.preservesPageAspectRatio(URL(fileURLWithPath: "/tmp/paper.pdf")),
+               "PDF first-page previews should continue to preserve their page ratio")
+}
+
+check("Quick-captured ideas retain their type for a future response harness") { directory in
+    let repository = try TaskRepository(directory: directory)
+    _ = try repository.add(title: "A thought worth returning to", kind: .idea)
+    let reopened = try TaskRepository(directory: directory)
+    try expect(reopened.pending.first?.kind == .idea,
+               "An idea must remain distinguishable from an ordinary task after restart")
+}
+
+check("Reminders persist and meeting links are recognized automatically") { directory in
+    let examples: [(String, MeetingPlatform)] = [
+        ("https://us02web.zoom.us/j/123456789?pwd=abc", .zoom),
+        ("https://meeting.tencent.com/dm/f4jjG172bOmy", .tencentMeeting),
+        ("https://vc.feishu.cn/j/123456789", .feishu),
+        ("https://vc.larksuite.com/j/123456789", .lark)
+    ]
+    for (link, platform) in examples {
+        try expect(MeetingLink.platform(for: link) == platform,
+                   "\(link) should be recognized as \(platform.rawValue)")
+    }
+    try expect(MeetingLink.platform(for: "https://zoom.us/pricing") == nil,
+               "An ordinary product page must not be treated as a meeting")
+    let importedFromChrome = HangingTask(title: "Team sync", url: examples[1].0,
+                                         resumeURL: examples[1].0)
+    try expect(importedFromChrome.kind == nil && importedFromChrome.isMeeting
+               && importedFromChrome.meetingPlatform == .tencentMeeting,
+               "A meeting captured as an ordinary browser page must be recognized automatically")
+    let repository = try TaskRepository(directory: directory)
+    let reminder = Date(timeIntervalSince1970: 1_900_000_000)
+    _ = try repository.add(title: "Research sync", url: examples[0].0,
+                           dueAt: reminder, kind: .meeting)
+    _ = try repository.add(title: "Pick up the kids", dueAt: reminder, kind: .reminder)
+    let reopened = try TaskRepository(directory: directory)
+    let meeting = reopened.pending.first(where: { $0.title == "Research sync" })
+    let everydayReminder = reopened.pending.first(where: { $0.title == "Pick up the kids" })
+    try expect(meeting?.kind == .meeting && meeting?.meetingPlatform == .zoom
+               && meeting?.dueAt == reminder,
+               "Meeting type, platform and reminder time must survive restart")
+    try expect(everydayReminder?.kind == .reminder && everydayReminder?.url == nil
+               && everydayReminder?.dueAt == reminder && everydayReminder?.isReminder == true,
+               "A reminder without a link must survive restart")
+}
+
+check("Custom task types and card assignments survive restart") { directory in
+    let focus = TaskTypeDefinition(name: "Deep work", colorHex: 0x397C91)
+    let personal = TaskTypeDefinition(name: "Personal", colorHex: 0xA6473D)
+    let typeRepository = try TaskTypeRepository(directory: directory)
+    try typeRepository.replace(with: [focus, personal])
+
+    let taskRepository = try TaskRepository(directory: directory)
+    let task = try taskRepository.add(title: "Write the proposal", taskTypeID: focus.id)
+    let reopenedTypes = try TaskTypeRepository(directory: directory)
+    let reopenedTasks = try TaskRepository(directory: directory)
+    try expect(reopenedTypes.taskTypes == [focus, personal],
+               "Custom names and colors must survive restart")
+    try expect(reopenedTasks.tasks.first?.taskTypeID == focus.id,
+               "A task's selected type must survive restart")
+
+    try reopenedTypes.replace(with: [personal])
+    try reopenedTasks.retainTaskTypeAssignments(in: Set([personal.id]))
+    try expect(reopenedTasks.tasks.first(where: { $0.id == task.id })?.taskTypeID == nil,
+               "Deleting a type must return assigned tasks to the default border")
 }
 
 check("Complete, restart and restore retain the original task and URL") { directory in
@@ -93,8 +200,16 @@ check("A completed paper can leave and rejoin the spike without leaving the arch
     try expect(reopened.completed.first?.spikeX == 0.95 && reopened.completed.first?.spikeY == 3.05
                && reopened.completed.first?.spikeZ == -0.38,
                "Paper movement must stay on the shaft and within the pierced paper area")
+    try reopened.resizeOnSpike(task.id, scale: 1.28)
+    let resized = try TaskRepository(directory: directory).completed.first
+    try expect(resized?.spikeScale == 1.28,
+               "A paper's selected size must survive restart")
+    try reopened.resizeOnSpike(task.id, scale: 4)
+    try expect(reopened.completed.first?.effectiveSpikeScale == 1.5,
+               "Paper size must stay within the usable range")
     let legacy = HangingTask(title: "旧完成记录", completedAt: Date(timeIntervalSince1970: 100))
-    try expect(legacy.isOnSpike, "Legacy completed tasks without an attachment flag must remain visible")
+    try expect(legacy.isOnSpike && legacy.effectiveSpikeScale == 1,
+               "Legacy completed tasks must remain visible at the default size")
 }
 
 check("Archive sorts by completion time and deletion persists") { directory in
@@ -206,6 +321,18 @@ check("Custom workdays filter Published time and cross midnight") { _ in
     let fullDay = WorkdaySchedule(startMinute: 0, endMinute: 0)
     try expect(fullDay.contains(date(12, 23, 59), inWorkdayContaining: date(12, 12), calendar: calendar),
                "Equal start and end times must represent a 24-hour workday")
+
+    let explicitNextDay = WorkdaySchedule(startMinute: 0, endMinute: 6 * 60,
+                                           endsOnFollowingDay: true)
+    let extended = explicitNextDay.interval(startingOn: date(12, 0), calendar: calendar)
+    try expect(extended?.start == date(12, 0), "An explicit next-day window must keep its start day")
+    try expect(extended?.end == date(13, 6),
+               "An explicit next-day end must allow a later clock time such as 06:00")
+
+    let explicitSameDay = WorkdaySchedule(startMinute: 0, endMinute: 6 * 60,
+                                           endsOnFollowingDay: false)
+    try expect(explicitSameDay.interval(startingOn: date(12, 0), calendar: calendar)?.end == date(12, 6),
+               "The same clock time must also remain available as a same-day end")
 }
 
 check("Invalid input cannot change persisted tasks") { directory in

@@ -10,6 +10,9 @@ struct ReceiptSpike: View {
     private var desktop: Bool { surface == .desktop }
     private var isTargeted: Bool { targeted || store.isDraggingOverReceipt(on: surface) }
     private var visibleReceipts: [HangingTask] { Array(store.spiked.prefix(5)) }
+    private var taskTypeColors: [UUID: UInt32] {
+        Dictionary(uniqueKeysWithValues: store.taskTypes.map { ($0.id, $0.colorHex) })
+    }
 
     var body: some View {
         VStack(spacing: desktop ? 0 : 3) {
@@ -77,11 +80,13 @@ struct ReceiptSpike: View {
             Image(nsImage: ReceiptSpike3DView.previewImage(receipts: visibleReceipts,
                                                            highlighted: isTargeted,
                                                            language: store.language,
-                                                           appearance: store.appearance))
+                                                           appearance: store.appearance,
+                                                           taskTypeColors: taskTypeColors))
                 .resizable().scaledToFit()
         } else {
             ReceiptSpike3DView(receipts: visibleReceipts, highlighted: isTargeted,
-                               language: store.language, appearance: store.appearance) {
+                               language: store.language, appearance: store.appearance,
+                               taskTypeColors: taskTypeColors) {
                 store.destination = .spike
                 store.showMainWindow?()
             } onReceiptClick: { _ in
@@ -90,6 +95,9 @@ struct ReceiptSpike: View {
             } onReceiptMove: { id, x, y, z in
                 guard let task = store.spiked.first(where: { $0.id == id }) else { return }
                 store.moveOnSpike(task, x: x, y: y, z: z)
+            } onReceiptResize: { id, scale in
+                guard let task = store.spiked.first(where: { $0.id == id }) else { return }
+                store.resizeOnSpike(task, scale: scale)
             }
         }
     }

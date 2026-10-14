@@ -8,12 +8,15 @@ final class RotatableSpikeSceneView: SCNView {
     var onClick: (() -> Void)?
     var onReceiptClick: ((UUID) -> Void)?
     var onReceiptMove: ((UUID, Double, Double, Double) -> Void)?
+    var onReceiptResize: ((UUID, Double) -> Void)?
     var receiptCoordinateNode: SCNNode?
     private var dragDistance: CGFloat = 0
     private var activeReceiptNode: SCNNode?
     private var activeReceiptID: UUID?
     private var receiptDragDepth: CGFloat?
     private var receiptGrabOffset = SCNVector3Zero
+    private var resizingReceiptNode: SCNNode?
+    private var resizingReceiptID: UUID?
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -99,6 +102,33 @@ final class RotatableSpikeSceneView: SCNView {
         setNeedsDisplay(bounds)
     }
 
+    override func magnify(with event: NSEvent) {
+        if event.phase == .began {
+            let point = convert(event.locationInWindow, from: nil)
+            for result in hitTest(point, options: nil) {
+                guard let (node, id) = receiptNode(from: result.node) else { continue }
+                resizingReceiptNode = node
+                resizingReceiptID = id
+                break
+            }
+        }
+
+        if let node = resizingReceiptNode, [.began, .changed].contains(event.phase) {
+            let factor = max(0.5, 1 + event.magnification)
+            let scale = min(max(CGFloat(node.scale.x) * factor, 0.6), 1.5)
+            node.scale = SCNVector3(scale, scale, scale)
+            setNeedsDisplay(bounds)
+        }
+
+        if event.phase == .ended || event.phase == .cancelled {
+            if let node = resizingReceiptNode, let id = resizingReceiptID {
+                onReceiptResize?(id, Double(node.scale.x))
+            }
+            resizingReceiptNode = nil
+            resizingReceiptID = nil
+        }
+    }
+
     override func resetCursorRects() {
         addCursorRect(bounds, cursor: .openHand)
     }
@@ -109,9 +139,11 @@ struct ReceiptSpike3DView: NSViewRepresentable {
     let highlighted: Bool
     let language: AppLanguage
     let appearance: AppAppearance
+    let taskTypeColors: [UUID: UInt32]
     let onClick: () -> Void
     let onReceiptClick: (UUID) -> Void
     let onReceiptMove: (UUID, Double, Double, Double) -> Void
+    let onReceiptResize: (UUID, Double) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -123,6 +155,7 @@ struct ReceiptSpike3DView: NSViewRepresentable {
         view.onClick = onClick
         view.onReceiptClick = onReceiptClick
         view.onReceiptMove = onReceiptMove
+        view.onReceiptResize = onReceiptResize
         view.receiptCoordinateNode = context.coordinator.receiptRoot
         view.backgroundColor = .clear
         view.wantsLayer = true
@@ -138,18 +171,22 @@ struct ReceiptSpike3DView: NSViewRepresentable {
         view.onClick = onClick
         view.onReceiptClick = onReceiptClick
         view.onReceiptMove = onReceiptMove
+        view.onReceiptResize = onReceiptResize
         context.coordinator.update(receipts: receipts, highlighted: highlighted,
-                                   language: language, appearance: appearance)
+                                   language: language, appearance: appearance,
+                                   taskTypeColors: taskTypeColors)
     }
 
     @MainActor
     static func previewImage(receipts: [HangingTask], highlighted: Bool,
                              language: AppLanguage = .zh,
                              appearance: AppAppearance = .light,
+                             taskTypeColors: [UUID: UInt32] = [:],
                              yaw: CGFloat = 0, pitch: CGFloat = 0) -> NSImage {
         let coordinator = Coordinator()
         coordinator.update(receipts: receipts, highlighted: highlighted,
-                           language: language, appearance: appearance)
+                           language: language, appearance: appearance,
+                           taskTypeColors: taskTypeColors)
         coordinator.rotationRoot.eulerAngles.y = yaw
         coordinator.rotationRoot.eulerAngles.x = min(max(pitch, -0.12), 0.18)
         let renderer = SCNRenderer(device: nil, options: nil)
@@ -175,7 +212,7 @@ struct ReceiptSpike3DView: NSViewRepresentable {
         }
 
         func update(receipts: [HangingTask], highlighted: Bool, language: AppLanguage,
-                    appearance: AppAppearance) {
+                    appearance: AppAppearance, taskTypeColors: [UUID: UInt32]) {
             let dark = appearance == .dark
             baseMaterial.diffuse.contents = NSColor(calibratedWhite: dark ? 0.78 : 0.015, alpha: 1)
             topMaterial.diffuse.contents = NSColor(calibratedWhite: dark ? 0.94 : 0.04, alpha: 1)
@@ -184,7 +221,8 @@ struct ReceiptSpike3DView: NSViewRepresentable {
                 : NSColor.black
 
             let signature = receipts.map {
-                "\($0.id.uuidString)|\($0.title)|\($0.completedAt?.timeIntervalSince1970 ?? 0)|\($0.spikeX ?? 0)|\($0.spikeY ?? 0)|\($0.spikeZ ?? 0)"
+                let color = $0.taskTypeID.flatMap { taskTypeColors[$0] }
+                return "\($0.id.uuidString)|\($0.title)|\($0.completedAt?.timeIntervalSince1970 ?? 0)|\($0.spikeX ?? 0)|\($0.spikeY ?? 0)|\($0.spikeZ ?? 0)|\($0.effectiveSpikeScale)|\(color.map(String.init) ?? "default")"
             }.joined(separator: ";") + "|\(language.rawValue)|\(appearance.rawValue)"
             guard signature != receiptSignature else { return }
             receiptSignature = signature
@@ -193,11 +231,16 @@ struct ReceiptSpike3DView: NSViewRepresentable {
             let displayed = Array(receipts.prefix(10).reversed())
             let spacing = displayed.count > 1 ? min(0.18, 1.28 / CGFloat(displayed.count - 1)) : 0
             for (index, task) in displayed.enumerated() {
-                let paper = SCNNode(geometry: Self.paperGeometry(task: task, index: index, language: language))
+                let colorHex = task.taskTypeID.flatMap { taskTypeColors[$0] }
+                let paper = SCNNode(geometry: Self.paperGeometry(task: task, index: index,
+                                                                 language: language,
+                                                                 colorHex: colorHex))
                 paper.name = "receipt:\(task.id.uuidString)"
                 paper.position = SCNVector3(CGFloat(task.spikeX ?? 0),
                                             CGFloat(task.spikeY ?? Double(1.34 + CGFloat(index) * spacing)),
                                             CGFloat(task.spikeZ ?? 0))
+                let scale = CGFloat(task.effectiveSpikeScale)
+                paper.scale = SCNVector3(scale, scale, scale)
                 paper.eulerAngles = SCNVector3(0,
                                                Float([-0.23, 0.14, -0.09, 0.21, -0.16][index % 5]),
                                                Float([0.025, -0.018, 0.014, -0.025, 0.018][index % 5]))
@@ -320,7 +363,8 @@ struct ReceiptSpike3DView: NSViewRepresentable {
             scene.rootNode.addChildNode(ambientNode)
         }
 
-        private static func paperGeometry(task: HangingTask, index: Int, language: AppLanguage) -> SCNGeometry {
+        private static func paperGeometry(task: HangingTask, index: Int, language: AppLanguage,
+                                          colorHex: UInt32?) -> SCNGeometry {
             let columns = 16
             let rows = 8
             let width: Float = 2.82 - Float(index % 2) * 0.10
@@ -369,7 +413,8 @@ struct ReceiptSpike3DView: NSViewRepresentable {
             ], elements: [element])
             let material = SCNMaterial()
             material.lightingModel = .constant
-            material.diffuse.contents = receiptTexture(task: task, language: language)
+            material.diffuse.contents = receiptTexture(task: task, language: language,
+                                                       colorHex: colorHex)
             material.roughness.contents = 0.82
             material.metalness.contents = 0.0
             material.isDoubleSided = false
@@ -378,17 +423,22 @@ struct ReceiptSpike3DView: NSViewRepresentable {
             return geometry
         }
 
-        private static func receiptTexture(task: HangingTask, language: AppLanguage) -> NSImage {
+        private static func receiptTexture(task: HangingTask, language: AppLanguage,
+                                           colorHex: UInt32?) -> NSImage {
             let size = NSSize(width: 720, height: 340)
             let image = NSImage(size: size)
             image.lockFocus()
             let bounds = NSRect(origin: .zero, size: size)
-            NSColor(srgbRed: 229 / 255, green: 224 / 255, blue: 210 / 255, alpha: 1).setFill()
+            let paperColor = TaskTypePaperStyle.nsPaper(colorHex)
+            let inkColor = TaskTypePaperStyle.nsInk(colorHex)
+            let mutedInkColor = TaskTypePaperStyle.nsMutedInk(colorHex)
+            paperColor.setFill()
             bounds.fill()
             PaperTextureAsset.image?.draw(in: bounds, from: .zero,
-                                          operation: .sourceOver, fraction: 0.55)
+                                          operation: colorHex == nil ? .sourceOver : .multiply,
+                                          fraction: colorHex == nil ? 0.55 : 0.28)
 
-            NSColor(srgbRed: 23 / 255, green: 23 / 255, blue: 19 / 255, alpha: 0.88).setStroke()
+            inkColor.withAlphaComponent(0.82).setStroke()
             let border = NSBezierPath(rect: bounds.insetBy(dx: 18, dy: 18))
             border.lineWidth = 3
             border.stroke()
@@ -417,12 +467,12 @@ struct ReceiptSpike3DView: NSViewRepresentable {
             title.draw(in: NSRect(x: 72, y: 151, width: 600, height: 94), withAttributes: [
                 .font: LeLaboType.nsDisplay(38),
                 .kern: 1.5,
-                .foregroundColor: NSColor(srgbRed: 23 / 255, green: 23 / 255, blue: 19 / 255, alpha: 1),
+                .foregroundColor: inkColor,
                 .paragraphStyle: paragraph
             ])
             ("✓" as NSString).draw(at: NSPoint(x: 40, y: 170), withAttributes: [
                 .font: LeLaboType.nsLabel(29, bold: true),
-                .foregroundColor: NSColor(srgbRed: 23 / 255, green: 23 / 255, blue: 19 / 255, alpha: 1)
+                .foregroundColor: inkColor
             ])
 
             let formatter = DateFormatter()
@@ -432,13 +482,13 @@ struct ReceiptSpike3DView: NSViewRepresentable {
             let completed = "\(language.text("完成", "COMPLETED"))  \(formatter.string(from: task.completedAt ?? Date()))" as NSString
             let metadata: [NSAttributedString.Key: Any] = [
                 .font: LeLaboType.nsLabel(22),
-                .foregroundColor: NSColor(srgbRed: 74 / 255, green: 70 / 255, blue: 59 / 255, alpha: 1)
+                .foregroundColor: mutedInkColor
             ]
             published.draw(at: NSPoint(x: 44, y: 78), withAttributes: metadata)
             completed.draw(at: NSPoint(x: 44, y: 39), withAttributes: metadata)
             ("HANG LATER" as NSString).draw(at: NSPoint(x: 512, y: 294), withAttributes: [
                 .font: LeLaboType.nsLabel(17, bold: true),
-                .foregroundColor: NSColor(srgbRed: 53 / 255, green: 50 / 255, blue: 42 / 255, alpha: 1)
+                .foregroundColor: inkColor.withAlphaComponent(0.82)
             ])
             image.unlockFocus()
             return image

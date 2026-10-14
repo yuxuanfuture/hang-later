@@ -31,6 +31,73 @@ MainActor.assumeIsolated {
         exit(valid ? 0 : 2)
     }
 
+    if arguments.contains("--verify-idea-capture") {
+        app.setActivationPolicy(.prohibited)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HangLater-Idea-QA-\(UUID().uuidString)", isDirectory: true)
+        let store = AppStore(directory: directory)
+        let idea = "A small tool that lets unfinished thoughts mature"
+        let added = store.addIdea(idea)
+        let saved = store.pending.first
+        let valid = added && saved?.title == idea && saved?.url == nil
+            && saved?.note.isEmpty == true && saved?.kind == .idea
+        print(valid ? "PASS: quick idea capture creates a local clothesline card"
+                    : "FAIL: quick idea capture did not preserve the idea")
+        try? FileManager.default.removeItem(at: directory)
+        exit(valid ? 0 : 2)
+    }
+
+    if let thumbnailIndex = arguments.firstIndex(of: "--verify-document-thumbnail"),
+       arguments.indices.contains(thumbnailIndex + 1) {
+        app.setActivationPolicy(.prohibited)
+        let url = URL(fileURLWithPath: arguments[thumbnailIndex + 1])
+        var thumbnail: NSImage?
+        var finished = false
+        Task { @MainActor in
+            thumbnail = await DocumentThumbnail.image(for: url)
+            finished = true
+        }
+        let deadline = Date().addingTimeInterval(12)
+        while !finished && Date() < deadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        }
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HangLater-Document-QA-\(UUID().uuidString)", isDirectory: true)
+        let legacyPreview = "legacy-icon.png"
+        try? FileManager.default.createDirectory(at: directory.appendingPathComponent("Previews"),
+                                                 withIntermediateDirectories: true)
+        try? Data([0]).write(to: directory.appendingPathComponent("Previews").appendingPathComponent(legacyPreview))
+        if let repository = try? TaskRepository(directory: directory) {
+            _ = try? repository.add(title: url.lastPathComponent, previewFile: legacyPreview,
+                                    filePath: url.path)
+        }
+        let store = AppStore(directory: directory)
+        let refreshDeadline = Date().addingTimeInterval(12)
+        while store.tasks.first?.previewFile == legacyPreview && Date() < refreshDeadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        }
+        let refreshed = store.tasks.first?.previewFile != legacyPreview
+        let provider = NSItemProvider(contentsOf: url)
+        let accepted = provider.map { store.acceptDrop([$0]) } ?? false
+        let importDeadline = Date().addingTimeInterval(12)
+        while store.tasks.filter({ $0.filePath == url.path }).count < 2 && Date() < importDeadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        }
+        let imported = store.tasks.first(where: { $0.filePath == url.path && $0.previewFile != legacyPreview })
+        let storedPreview = imported.flatMap(store.preview)
+        let valid = thumbnail.map { $0.size.width > 0 && $0.size.height > 0 } == true
+            && refreshed && accepted && store.tasks.filter({ $0.filePath == url.path }).count == 2
+            && storedPreview.map { $0.size.width > 0 && $0.size.height > 0 } == true
+        if valid, let thumbnail {
+            print("PASS: Quick Look rendered and imported \(url.lastPathComponent) at \(Int(thumbnail.size.width))x\(Int(thumbnail.size.height))")
+            try? FileManager.default.removeItem(at: directory)
+            exit(0)
+        }
+        print("FAIL: Quick Look did not render and import \(url.lastPathComponent)")
+        try? FileManager.default.removeItem(at: directory)
+        exit(2)
+    }
+
     if arguments.contains("--verify-external-drop") {
         app.setActivationPolicy(.prohibited)
         let directory = FileManager.default.temporaryDirectory
@@ -146,7 +213,7 @@ MainActor.assumeIsolated {
             .appendingPathComponent("HangLater-Preview-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         if !sampleData {
-            for name in ["tasks.json", "Previews"] {
+            for name in ["tasks.json", "task-types.json", "Previews"] {
                 let source = liveDirectory.appendingPathComponent(name)
                 let destination = directory.appendingPathComponent(name)
                 if FileManager.default.fileExists(atPath: source.path) {
@@ -217,12 +284,96 @@ MainActor.assumeIsolated {
         } catch { return false }
     }
 
+    if let ideaIndex = arguments.firstIndex(of: "--render-idea-preview"),
+       arguments.indices.contains(ideaIndex + 1) {
+        app.setActivationPolicy(.prohibited)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HangLater-Idea-Preview-\(UUID().uuidString)", isDirectory: true)
+        let store = AppStore(directory: directory)
+        store.language = arguments.contains("--english") ? .en : .zh
+        store.appearance = arguments.contains("--dark") ? .dark : .light
+        let rendered = IdeaCaptureView(store: store, onHang: { _ in true }, onCancel: {})
+            .frame(width: 390, height: 154)
+        let succeeded = writeSnapshot(rendered, size: NSSize(width: 390, height: 154),
+                                      to: arguments[ideaIndex + 1])
+        try? FileManager.default.removeItem(at: directory)
+        exit(succeeded ? 0 : 2)
+    }
+
+    if let ideaCardIndex = arguments.firstIndex(of: "--render-idea-card-preview"),
+       arguments.indices.contains(ideaCardIndex + 1) {
+        app.setActivationPolicy(.prohibited)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HangLater-Idea-Card-Preview-\(UUID().uuidString)", isDirectory: true)
+        let store = AppStore(directory: directory)
+        store.language = arguments.contains("--english") ? .en : .zh
+        store.appearance = arguments.contains("--dark") ? .dark : .light
+        _ = store.addIdea("I want to eat")
+        if let task = store.pending.first {
+            if arguments.contains("--colored-type") {
+                let ideaType = TaskTypeDefinition(name: "Personal", colorHex: 0xE8365F)
+                _ = store.updateTaskTypes([ideaType])
+                store.setTaskType(ideaType.id, for: task)
+            }
+            if let current = store.pending.first { store.place(current, lineX: 0.25) }
+        }
+        store.message = nil
+        let state = DesktopState(); state.setRevealed(true)
+        let rendered = DesktopLineView(store: store, state: state)
+            .frame(width: 760, height: 304).background(Color.clear)
+        let succeeded = writeSnapshot(rendered, size: NSSize(width: 760, height: 304),
+                                      to: arguments[ideaCardIndex + 1])
+        try? FileManager.default.removeItem(at: directory)
+        exit(succeeded ? 0 : 2)
+    }
+
+    if let reminderIndex = arguments.firstIndex(where: {
+        $0 == "--render-reminder-preview" || $0 == "--render-meeting-preview"
+    }), arguments.indices.contains(reminderIndex + 1) {
+        app.setActivationPolicy(.prohibited)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HangLater-Reminder-Preview-\(UUID().uuidString)", isDirectory: true)
+        let store = AppStore(directory: directory)
+        store.language = arguments.contains("--english") ? .en : .zh
+        store.appearance = arguments.contains("--dark") ? .dark : .light
+        let rendered = ReminderCaptureView(
+            store: store,
+            onHang: { _, _, _ in true },
+            onCancel: {},
+            initialTitle: store.text("生活提醒", "Everyday reminder"),
+            initialLink: ""
+        ).frame(width: 440, height: 286)
+        let succeeded = writeSnapshot(rendered, size: NSSize(width: 440, height: 286),
+                                      to: arguments[reminderIndex + 1])
+        try? FileManager.default.removeItem(at: directory)
+        exit(succeeded ? 0 : 2)
+    }
+
+    if let editorIndex = arguments.firstIndex(of: "--render-reminder-editor-preview"),
+       arguments.indices.contains(editorIndex + 1) {
+        app.setActivationPolicy(.prohibited)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HangLater-Reminder-Editor-Preview-\(UUID().uuidString)", isDirectory: true)
+        let store = AppStore(directory: directory)
+        store.language = arguments.contains("--english") ? .en : .zh
+        store.appearance = arguments.contains("--dark") ? .dark : .light
+        let task = HangingTask(title: store.text("准备下午的事情", "Prepare the afternoon task"))
+        let rendered = ReminderEditorView(store: store, task: task)
+            .frame(width: 440, height: 310)
+        let succeeded = writeSnapshot(rendered, size: NSSize(width: 440, height: 310),
+                                      to: arguments[editorIndex + 1])
+        try? FileManager.default.removeItem(at: directory)
+        exit(succeeded ? 0 : 2)
+    }
+
     if let spikeIndex = arguments.firstIndex(of: "--render-spike-preview"), arguments.indices.contains(spikeIndex + 1) {
         app.setActivationPolicy(.prohibited)
         let (store, directory) = makePreviewStore()
         let image = ReceiptSpike3DView.previewImage(receipts: Array(store.spiked.prefix(10)),
                                                     highlighted: false, language: store.language,
                                                     appearance: store.appearance,
+                                                    taskTypeColors: Dictionary(uniqueKeysWithValues:
+                                                        store.taskTypes.map { ($0.id, $0.colorHex) }),
                                                     yaw: 1.15, pitch: -0.12)
         let succeeded: Bool
         if let tiff = image.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff),
@@ -257,8 +408,12 @@ MainActor.assumeIsolated {
         store.language = arguments.contains("--english") ? .en : .zh
         store.appearance = arguments.contains("--dark") ? .dark : .light
         store.updateWorkday(startMinute: 8 * 60, endMinute: 2 * 60, persist: false)
-        let rendered = SettingsView(store: store).frame(width: 500, height: 470)
-        let succeeded = writeSnapshot(rendered, size: NSSize(width: 500, height: 470),
+        _ = store.updateTaskTypes([
+            TaskTypeDefinition(name: store.text("深度工作", "Deep work"), colorHex: 0x2F87E1),
+            TaskTypeDefinition(name: store.text("个人", "Personal"), colorHex: 0xE8365F)
+        ])
+        let rendered = SettingsView(store: store).frame(width: 820, height: 700)
+        let succeeded = writeSnapshot(rendered, size: NSSize(width: 820, height: 700),
                                       to: arguments[settingsIndex + 1])
         try? FileManager.default.removeItem(at: directory)
         exit(succeeded ? 0 : 2)
@@ -271,9 +426,11 @@ MainActor.assumeIsolated {
         if arguments.contains("--spike") {
             store.destination = .spike
             let positions = [(-0.62, 1.05, -0.20), (0.52, 1.82, 0.18), (-0.18, 2.48, 0.31)]
-            for (task, position) in zip(store.spiked.prefix(3), positions) {
+            let scales = [0.72, 1.0, 1.35]
+            for ((task, position), scale) in zip(zip(store.spiked.prefix(3), positions), scales) {
                 _ = store.perform {
                     try $0.moveOnSpike(task.id, x: position.0, y: position.1, z: position.2)
+                    try $0.resizeOnSpike(task.id, scale: scale)
                 }
             }
         }

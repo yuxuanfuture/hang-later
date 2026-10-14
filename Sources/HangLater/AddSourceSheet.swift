@@ -25,6 +25,11 @@ struct AddSourceSheet: View {
                              detail: store.text("记下一件事，也可以粘贴网页地址。", "Write something down or paste a web address.")) {
                     next { store.showingComposer = true }
                 }
+                sourceButton(symbol: "bell.fill", title: store.text("挂一个提醒", "Hang a reminder"),
+                             detail: store.text("写下时间；会议链接和普通链接都可以不填。",
+                                                "Choose a time; a meeting or web link is optional.")) {
+                    next { store.showingReminderComposer = true }
+                }
                 sourceButton(symbol: "photo", title: store.text("选择图片", "Choose an image"),
                              detail: store.text("也可以直接把图片拖到晾衣绳上。", "You can also drag an image straight onto the clothesline.")) {
                     next { store.chooseImage() }

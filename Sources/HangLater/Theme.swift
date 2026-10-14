@@ -95,18 +95,66 @@ enum PaperTextureAsset {
 }
 
 struct LabelPaper: View {
+    var tint: Color? = nil
+
     var body: some View {
         ZStack {
-            Palette.labelPaper
+            tint ?? Palette.labelPaper
             if let image = PaperTextureAsset.image {
                 Image(nsImage: image)
                     .resizable(resizingMode: .tile)
-                    .opacity(0.45)
+                    .opacity(tint == nil ? 0.45 : 0.28)
                     .blendMode(.multiply)
             }
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+}
+
+enum TaskTypePaperStyle {
+    static func usesLightInk(_ hex: UInt32) -> Bool {
+        let red = Double((hex >> 16) & 255) / 255
+        let green = Double((hex >> 8) & 255) / 255
+        let blue = Double(hex & 255) / 255
+        return red * 0.299 + green * 0.587 + blue * 0.114 < 0.52
+    }
+
+    static func paper(_ hex: UInt32?) -> Color {
+        hex.map(Color.init(hex:)) ?? Palette.labelPaper
+    }
+
+    static func ink(_ hex: UInt32?) -> Color {
+        guard let hex else { return Palette.labelInk }
+        return usesLightInk(hex) ? Color.white.opacity(0.96) : Color.black.opacity(0.88)
+    }
+
+    static func mutedInk(_ hex: UInt32?) -> Color {
+        guard let hex else { return Palette.labelMuted }
+        return usesLightInk(hex) ? Color.white.opacity(0.72) : Color.black.opacity(0.62)
+    }
+
+    static func nsPaper(_ hex: UInt32?) -> NSColor {
+        hex.map(NSColor.init(hex:))
+            ?? NSColor(srgbRed: 229 / 255, green: 224 / 255, blue: 210 / 255, alpha: 1)
+    }
+
+    static func nsInk(_ hex: UInt32?) -> NSColor {
+        guard let hex else {
+            return NSColor(srgbRed: 23 / 255, green: 23 / 255, blue: 19 / 255, alpha: 1)
+        }
+        return usesLightInk(hex)
+            ? NSColor.white.withAlphaComponent(0.96)
+            : NSColor.black.withAlphaComponent(0.88)
+    }
+
+    static func nsMutedInk(_ hex: UInt32?) -> NSColor {
+        guard let hex else {
+            return NSColor(srgbRed: 74 / 255, green: 70 / 255, blue: 59 / 255, alpha: 1)
+        }
+        return usesLightInk(hex)
+            ? NSColor.white.withAlphaComponent(0.72)
+            : NSColor.black.withAlphaComponent(0.62)
     }
 }
 

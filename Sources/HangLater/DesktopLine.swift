@@ -13,9 +13,14 @@ final class DesktopPanel: NSPanel {
     }
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
-    func place(on screen: NSScreen) {
+    func place(on screen: NSScreen, verticalPosition: Double) {
         let visible = screen.visibleFrame
-        let next = NSRect(x: visible.minX, y: visible.maxY - 304, width: visible.width, height: 304)
+        let height: CGFloat = 304
+        let originY = DesktopLineLayout.verticalOrigin(
+            visibleMinY: Double(visible.minY), visibleHeight: Double(visible.height),
+            panelHeight: Double(height), position: verticalPosition
+        )
+        let next = NSRect(x: visible.minX, y: CGFloat(originY), width: visible.width, height: height)
         if frame != next { setFrame(next, display: true) }
     }
 }
