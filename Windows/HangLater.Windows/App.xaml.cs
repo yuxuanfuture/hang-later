@@ -92,7 +92,7 @@ public partial class App : System.Windows.Application
     }
     public void ToggleDesktopLine()
     {
-        if (DesktopLine.IsVisible && !Settings.KeepClotheslineVisible) DesktopLine.Hide();
+        if (DesktopLine.IsVisible) DesktopLine.Hide();
         else ShowDesktopLineOn(FormsScreen.FromPoint(System.Windows.Forms.Control.MousePosition));
     }
     public void ShowDesktopLineOn(FormsScreen screen)
