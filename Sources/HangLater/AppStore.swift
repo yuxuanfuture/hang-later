@@ -223,6 +223,11 @@ final class AppStore: ObservableObject {
         showMainWindow?()
     }
 
+    func editReminder(_ task: HangingTask) {
+        reminderEditingTask = tasks.first(where: { $0.id == task.id }) ?? task
+        showMainWindow?()
+    }
+
     func presentAddOptions() {
         showingAddChooser = true
         showMainWindow?()

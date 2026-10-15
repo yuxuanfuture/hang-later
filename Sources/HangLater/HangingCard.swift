@@ -120,24 +120,7 @@ struct HangingCard: View {
                         }
                             .foregroundStyle(completionRowInk.opacity(0.72))
                     }
-                    Menu {
-                        Button(store.text("编辑", "Edit")) {
-                            store.edit(task)
-                        }
-                        Button {
-                            editReminder()
-                        } label: {
-                            Label(task.dueAt == nil
-                                  ? store.text("添加提醒时间…", "Add reminder…")
-                                  : store.text("修改提醒时间…", "Change reminder…"),
-                                  systemImage: "bell")
-                        }
-                        taskTypeMenu
-                        Divider()
-                        Button(store.text("删除", "Delete"), role: .destructive) {
-                            store.remove(task)
-                        }
-                    } label: {
+                    TaskActionsMenu(task: task, store: store) {
                         Image(systemName: "ellipsis")
                     }
                     .menuStyle(.borderlessButton).menuIndicator(.hidden)
@@ -177,43 +160,17 @@ struct HangingCard: View {
             Button(store.text("继续这件事", "Continue this task")) { store.open(task) }
             Button(store.text("编辑", "Edit")) { store.edit(task) }
             Button {
-                editReminder()
+                store.editReminder(task)
             } label: {
                 Label(task.dueAt == nil
                       ? store.text("添加提醒时间…", "Add reminder…")
                       : store.text("修改提醒时间…", "Change reminder…"),
                       systemImage: "bell")
             }
-            taskTypeMenu
+            TaskTypeMenu(task: task, store: store)
             Button(store.text("完成，收起来", "Complete and archive")) { store.complete(task) }
             Divider()
             Button(store.text("删除", "Delete"), role: .destructive) { store.remove(task) }
-        }
-    }
-
-    private func editReminder() {
-        store.reminderEditingTask = task
-        store.showMainWindow?()
-    }
-
-    @ViewBuilder
-    private var taskTypeMenu: some View {
-        Menu(store.text("任务类型", "Task type")) {
-            Button {
-                store.setTaskType(nil, for: task)
-            } label: {
-                Label(store.text("默认边框", "Default border"),
-                      systemImage: task.taskTypeID == nil ? "checkmark" : "circle")
-            }
-            if !store.taskTypes.isEmpty { Divider() }
-            ForEach(store.taskTypes) { type in
-                Button {
-                    store.setTaskType(type.id, for: task)
-                } label: {
-                    Label(type.name,
-                          systemImage: task.taskTypeID == type.id ? "checkmark" : "circle.fill")
-                }
-            }
         }
     }
 
