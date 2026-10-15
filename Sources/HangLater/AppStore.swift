@@ -423,7 +423,7 @@ final class AppStore: ObservableObject {
                 error = text("图片预览已经不可用。", "The image preview is no longer available.")
                 return
             }
-            if !(openImagePreview?(previewURL) ?? NSWorkspace.shared.open(previewURL)) {
+            if !openImageOutsideHangLater(previewURL) {
                 error = text("无法打开图片预览。", "The image preview could not be opened.")
             }
             return
@@ -549,6 +549,25 @@ final class AppStore: ObservableObject {
               filename == URL(fileURLWithPath: filename).lastPathComponent else { return nil }
         let storedPreview = previewDirectory.appendingPathComponent(filename)
         return FileManager.default.fileExists(atPath: storedPreview.path) ? storedPreview : nil
+    }
+
+    private func openImageOutsideHangLater(_ url: URL) -> Bool {
+        if let openImagePreview { return openImagePreview(url) }
+        let workspace = NSWorkspace.shared
+        guard let previewApplication = workspace.urlForApplication(withBundleIdentifier: "com.apple.Preview") else {
+            return workspace.open(url)
+        }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        configuration.addsToRecentItems = false
+        workspace.open([url], withApplicationAt: previewApplication, configuration: configuration) { _, failure in
+            guard let failure else { return }
+            Task { @MainActor in
+                self.error = self.text("无法打开图片预览：", "The image preview could not be opened: ")
+                    + failure.localizedDescription
+            }
+        }
+        return true
     }
 
     /// Older ScreenCaptureKit captures sometimes placed a 1x window in the top-left of a 2x
