@@ -487,6 +487,22 @@ final class AppStore: ObservableObject {
         showMainWindow?()
     }
 
+    func openPreview(_ task: HangingTask) {
+        let previewURL: URL?
+        if task.isImage {
+            previewURL = imagePreviewURL(for: task)
+        } else {
+            previewURL = storedPreviewURL(for: task)
+        }
+        guard let previewURL else {
+            error = text("缩略图预览已经不可用。", "The thumbnail preview is no longer available.")
+            return
+        }
+        if !openImageOutsideHangLater(previewURL) {
+            error = text("无法打开缩略图预览。", "The thumbnail preview could not be opened.")
+        }
+    }
+
     private func activateApplication(bundleIdentifier: String) {
         let workspace = NSWorkspace.shared
         let running = NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier).first
@@ -555,6 +571,10 @@ final class AppStore: ObservableObject {
            FileManager.default.fileExists(atPath: path) {
             return URL(fileURLWithPath: path)
         }
+        return storedPreviewURL(for: task)
+    }
+
+    private func storedPreviewURL(for task: HangingTask) -> URL? {
         guard let filename = task.previewFile,
               filename == URL(fileURLWithPath: filename).lastPathComponent else { return nil }
         let storedPreview = previewDirectory.appendingPathComponent(filename)

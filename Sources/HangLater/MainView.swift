@@ -404,14 +404,26 @@ struct MainView: View {
                 Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle").font(.system(size: 20, weight: .light))
                     .foregroundStyle(task.isCompleted ? Palette.green : Palette.muted)
             }.buttonStyle(.plain).help(task.isCompleted ? store.text("重新挂回晾衣绳", "Hang on the clothesline again") : store.text("完成任务", "Complete task"))
-            Button { store.open(task) } label: {
+            Button {
+                if store.preview(task) != nil {
+                    store.openPreview(task)
+                } else {
+                    store.open(task)
+                }
+            } label: {
                 ZStack {
                     Rectangle().fill(Palette.cards[abs(task.tint % 4)])
                     if let preview = store.preview(task) { Image(nsImage: preview).resizable().scaledToFill() }
                     else { Image(systemName: store.sourceSymbol(task)).foregroundStyle(Palette.accents[abs(task.tint % 4)]) }
                 }.frame(width: 57, height: 45).clipped().clipShape(Rectangle())
-            }.buttonStyle(.plain)
-            Button { store.open(task) } label: {
+            }
+            .buttonStyle(.plain)
+            .help(store.preview(task) == nil
+                  ? store.text("打开任务内容", "Open task content")
+                  : store.text("放大预览图", "Enlarge preview"))
+            Button {
+                task.isCompleted ? store.open(task) : store.edit(task)
+            } label: {
                 VStack(alignment: .leading, spacing: 7) {
                     Text(task.title).font(LeLaboType.display(13)).tracking(0.35).lineLimit(1)
                     HStack(spacing: 8) {
@@ -429,7 +441,11 @@ struct MainView: View {
                         }
                     }.font(LeLaboType.label(11)).foregroundStyle(Palette.muted).lineLimit(1)
                 }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
-            }.buttonStyle(.plain)
+            }
+            .buttonStyle(.plain)
+            .help(task.isCompleted
+                  ? store.text("打开任务内容", "Open task content")
+                  : store.text("编辑任务", "Edit task"))
             if task.isCompleted {
                 Button(store.text("再晾一次", "Hang again")) { store.restore(task) }.buttonStyle(QuietButton())
                 Button { deleting = task } label: { Image(systemName: "trash").foregroundStyle(Palette.muted) }.buttonStyle(.plain).help(store.text("永久删除", "Delete permanently"))

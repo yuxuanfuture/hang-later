@@ -113,6 +113,33 @@ MainActor.assumeIsolated {
         exit(valid ? 0 : 2)
     }
 
+    if arguments.contains("--verify-task-thumbnail-preview") {
+        app.setActivationPolicy(.prohibited)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HangLater-Thumbnail-Preview-QA-\(UUID().uuidString)", isDirectory: true)
+        let store = AppStore(directory: directory)
+        var showedMainWindow = false
+        var openedPreviewURLs: [URL] = []
+        store.showMainWindow = { showedMainWindow = true }
+        store.openImagePreview = { openedPreviewURLs.append($0); return true }
+        let image = NSImage(size: NSSize(width: 640, height: 400))
+        image.lockFocus()
+        NSColor.systemTeal.setFill()
+        NSRect(origin: .zero, size: image.size).fill()
+        image.unlockFocus()
+        let added = store.add(title: "Captured web page", url: "https://example.com", note: "", dueAt: nil,
+                              screenshot: image.tiffRepresentation)
+        let task = store.pending.first
+        if let task { store.openPreview(task) }
+        let storedPreview = task?.previewFile.map { store.previewDirectory.appendingPathComponent($0) }
+        let valid = added && task?.isImage == false && !showedMainWindow
+            && store.editingTask == nil && openedPreviewURLs.last == storedPreview
+        print(valid ? "PASS: clicking a task thumbnail enlarges its saved preview"
+                    : "FAIL: the task thumbnail did not open its saved preview")
+        try? FileManager.default.removeItem(at: directory)
+        exit(valid ? 0 : 2)
+    }
+
     if let thumbnailIndex = arguments.firstIndex(of: "--verify-document-thumbnail"),
        arguments.indices.contains(thumbnailIndex + 1) {
         app.setActivationPolicy(.prohibited)
