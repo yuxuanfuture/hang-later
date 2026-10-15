@@ -18,14 +18,55 @@ struct TaskEditor: View {
         MeetingLink.platform(for: url.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
-    private var editingImage: NSImage? {
-        guard let task, task.isImage else { return nil }
+    private var latestTask: HangingTask? {
+        guard let task else { return nil }
+        return store.tasks.first(where: { $0.id == task.id }) ?? task
+    }
+
+    private var editingPreview: NSImage? {
+        guard let task = latestTask else { return nil }
         if let path = task.filePath,
+           task.isImage,
            FileManager.default.fileExists(atPath: path),
            let original = NSImage(contentsOfFile: path) {
             return original
         }
         return store.preview(task)
+    }
+
+    private var previewTitle: String {
+        guard let task = latestTask else { return store.text("缩略图", "Preview") }
+        if task.isImage { return store.text("图片", "Image") }
+        if task.url != nil || TaskInput.webURL(task.resumeURL ?? "") != nil {
+            return store.text("网页缩略图", "Web page preview")
+        }
+        if let path = task.filePath {
+            let kind = URL(fileURLWithPath: path).pathExtension.uppercased()
+            return kind.isEmpty ? store.text("文件缩略图", "File preview") : "\(kind) \(store.text("缩略图", "preview"))"
+        }
+        if task.appBundleIdentifier != nil {
+            return store.text("App 窗口缩略图", "App window preview")
+        }
+        return store.text("缩略图", "Preview")
+    }
+
+    private var previewDetail: String {
+        guard let task = latestTask else {
+            return store.text("缩略图保存在这台 Mac 上。", "This preview is saved on this Mac.")
+        }
+        if task.isImage {
+            return store.text("图片保存在这台 Mac 上。", "This image is saved on this Mac.")
+        }
+        if task.url != nil || TaskInput.webURL(task.resumeURL ?? "") != nil {
+            return store.text("这是已保存的网页缩略图。", "This is the saved preview of the web page.")
+        }
+        if task.filePath != nil {
+            return store.text("这是 macOS 为原文件生成的缩略图。", "macOS generated this preview from the original file.")
+        }
+        if task.appBundleIdentifier != nil {
+            return store.text("这是已保存的 App 窗口缩略图。", "This is the saved preview of the app window.")
+        }
+        return store.text("缩略图保存在这台 Mac 上。", "This preview is saved on this Mac.")
     }
 
     var body: some View {
@@ -42,7 +83,7 @@ struct TaskEditor: View {
                 Spacer()
                 Button { dismiss() } label: { Image(systemName: "xmark").foregroundStyle(Palette.muted) }.buttonStyle(.plain).keyboardShortcut(.cancelAction)
             }
-            if let image = editingImage {
+            if let image = editingPreview {
                 HStack(spacing: 14) {
                     Image(nsImage: image)
                         .resizable()
@@ -52,9 +93,9 @@ struct TaskEditor: View {
                         .clipShape(Rectangle())
                         .overlay(Rectangle().stroke(Palette.border, lineWidth: 1))
                     VStack(alignment: .leading, spacing: 7) {
-                        Label(store.text("图片", "Image"), systemImage: "photo")
+                        Label(previewTitle, systemImage: latestTask.map(store.sourceSymbol) ?? "photo")
                             .font(LeLaboType.label(10, bold: true))
-                        Text(store.text("图片保存在这台 Mac 上。", "This image is saved on this Mac."))
+                        Text(previewDetail)
                             .font(LeLaboType.copy(10))
                             .foregroundStyle(Palette.muted)
                     }
