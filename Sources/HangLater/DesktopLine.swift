@@ -57,36 +57,41 @@ struct DesktopLineView: View {
             }
             HStack {
                 Spacer()
-                VStack(spacing: 8) {
-                    Label("Drag something here", systemImage: "pin")
+                HStack(spacing: 12) {
+                    Image(systemName: "pin")
+                        .font(.system(size: 13, weight: .medium))
+                        .rotationEffect(.degrees(-28))
+                    Text("Drag something here")
                         .font(LeLaboType.label(11, bold: true))
-                        .foregroundStyle(Palette.labelInk)
                         .textCase(.uppercase)
-                        .frame(width: 220, height: 44)
-                        .background { LabelPaper() }
-                        .overlay(Rectangle().stroke(Palette.labelRule.opacity(0.72), lineWidth: 0.8))
-
-                    Rectangle()
-                        .fill(Palette.labelPaper.opacity(dropHighlighted ? 0.82 : 0.24))
-                        .frame(width: 220, height: 54)
-                        .overlay {
-                            Rectangle().stroke(
-                                Palette.labelInk.opacity(dropHighlighted ? 0.96 : 0.78),
-                                style: StrokeStyle(lineWidth: dropHighlighted ? 2 : 1.2,
-                                                   dash: [7, 5])
-                            )
-                        }
-                        .shadow(color: .black.opacity(dropHighlighted ? 0.34 : 0.22), radius: 5, y: 2)
-                        .contentShape(Rectangle())
-                        .background(GeometryReader { proxy in
-                            Color.clear.preference(key: DesktopDropTargetRect.self,
-                                                   value: proxy.frame(in: .named("desktopLine")))
-                        })
-                        .onDrop(of: DropSupport.acceptedContentTypes, isTargeted: $targeted) {
-                            store.acceptDrop($0)
-                        }
-                        .accessibilityLabel(store.text("把内容拖到这里", "Drop something here"))
                 }
+                .foregroundStyle(Palette.labelInk)
+                .frame(width: 220, height: 48)
+                .background {
+                    ZStack {
+                        LabelPaper()
+                        Palette.labelInk.opacity(dropHighlighted ? 0.18 : 0)
+                    }
+                }
+                .overlay {
+                    Rectangle().stroke(
+                        Palette.labelInk.opacity(dropHighlighted ? 0.98 : 0.80),
+                        style: StrokeStyle(lineWidth: dropHighlighted ? 2 : 1.2,
+                                           dash: [7, 5])
+                    )
+                }
+                .shadow(color: .black.opacity(dropHighlighted ? 0.34 : 0.22), radius: 5, y: 2)
+                .scaleEffect(dropHighlighted ? 1.015 : 1)
+                .animation(.easeOut(duration: 0.14), value: dropHighlighted)
+                .contentShape(Rectangle())
+                .background(GeometryReader { proxy in
+                    Color.clear.preference(key: DesktopDropTargetRect.self,
+                                           value: proxy.frame(in: .named("desktopLine")))
+                })
+                .onDrop(of: DropSupport.acceptedContentTypes, isTargeted: $targeted) {
+                    store.acceptDrop($0)
+                }
+                .accessibilityLabel(store.text("把内容拖到这里", "Drop something here"))
                 Spacer()
             }
             .padding(.top, 36)
