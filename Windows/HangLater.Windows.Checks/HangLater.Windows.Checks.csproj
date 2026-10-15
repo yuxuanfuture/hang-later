@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><RootNamespace>HangLater.Windows</RootNamespace></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\HangLater.Windows\Models\HangingTask.cs" Link="Models\HangingTask.cs" />
+    <Compile Include="..\HangLater.Windows\Models\AppSettings.cs" Link="Models\AppSettings.cs" />
+    <Compile Include="..\HangLater.Windows\Models\EdgeActivationPolicy.cs" Link="Models\EdgeActivationPolicy.cs" />
+    <Compile Include="..\HangLater.Windows\Services\JsonSupport.cs" Link="Services\JsonSupport.cs" />
+    <Compile Include="..\HangLater.Windows\Services\TaskRepository.cs" Link="Services\TaskRepository.cs" />
+    <Compile Include="..\HangLater.Windows\Services\SettingsRepository.cs" Link="Services\SettingsRepository.cs" />
+  </ItemGroup>
+</Project>

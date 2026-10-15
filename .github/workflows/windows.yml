@@ -1,0 +1,51 @@
+name: Windows
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "Windows/**"
+      - "ChromeExtension/**"
+      - "scripts/build-windows.ps1"
+      - ".github/workflows/windows.yml"
+  push:
+    branches: [main]
+    paths:
+      - "Windows/**"
+      - "ChromeExtension/**"
+      - "scripts/build-windows.ps1"
+      - ".github/workflows/windows.yml"
+
+jobs:
+  verify:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Verify Windows core
+        run: dotnet run --project Windows/HangLater.Windows.Checks/HangLater.Windows.Checks.csproj -c Release
+      - name: Build Windows UI
+        run: dotnet build Windows/HangLater.Windows/HangLater.Windows.csproj -c Release
+      - name: Verify Chrome extension
+        run: |
+          node --check ChromeExtension/popup.js
+          node --check ChromeExtension/background.js
+      - name: Package Windows x64
+        shell: pwsh
+        run: ./scripts/build-windows.ps1 -Runtime win-x64 -SkipChecks
+      - name: Smoke launch packaged app
+        shell: pwsh
+        run: |
+          $process = Start-Process ./build/windows/win-x64/HangLater.exe -PassThru
+          Start-Sleep -Seconds 5
+          if ($process.HasExited) { throw "Hang Later exited during the Windows smoke launch." }
+          Stop-Process -Id $process.Id -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HangLater-Windows-x64-development
+          path: |
+            build/releases/HangLater-Windows-x64-Setup.exe
+            build/releases/HangLater-Windows-win-x64.zip
+          if-no-files-found: warn

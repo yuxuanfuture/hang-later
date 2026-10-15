@@ -17,3 +17,8 @@ scripts/render-*-comparison.swift
 
 # Early reference asset; the shipping spike is rendered in SceneKit.
 Sources/HangLater/Resources/receipt-spike.png
+
+# Local .NET SDK and Windows build output.
+.tools/
+Windows/**/bin/
+Windows/**/obj/

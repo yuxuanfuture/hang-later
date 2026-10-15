@@ -124,6 +124,14 @@ open build/HangLater.app
 
 The build script creates `build/HangLater.app`, generates the complete macOS icon set, bundles the Chrome extension and native host, and applies a stable local ad hoc signature. macOS may ask for Screen Recording permission after a rebuild.
 
+The Windows implementation lives in [`Windows/`](Windows/README.md). On Windows 10 or 11 with the .NET 8 SDK, build the self-contained x64 package with:
+
+```powershell
+./scripts/build-windows.ps1 -Runtime win-x64
+```
+
+It includes a system-tray trigger, a configurable global shortcut (`Ctrl+Alt+L` by default), and an optional 3-pixel top-edge hover zone that opens the clothesline on the display under the pointer. See the [Windows guide](Windows/README.md) for packaging and ARM64 instructions.
+
 Closing the main window removes Hang Later from the Dock while the menu-bar pin keeps it running in the background. Choose **Open Hang Later** to restore the window, or **Quit Hang Later** to exit completely.
 Choose **Hang an Idea…** from the menu-bar pin to type a thought immediately, or **Hang a Reminder…** to schedule something with an optional meeting or web link.
 
@@ -305,6 +313,14 @@ open build/HangLater.app
 ```
 
 构建脚本会生成 `build/HangLater.app`、完整的 macOS 图标组、Chrome 扩展和 Native Messaging 本地主机，并使用稳定的本地 ad hoc 签名。重新构建后，macOS 可能会再次询问「屏幕录制」权限。
+
+Windows 版源码与说明位于 [`Windows/`](Windows/README.md#简体中文)。在安装 .NET 8 SDK 的 Windows 10 或 Windows 11 上，可以运行：
+
+```powershell
+./scripts/build-windows.ps1 -Runtime win-x64
+```
+
+Windows 版支持系统托盘呼出、可修改的全局快捷键（默认 `Ctrl+Alt+L`），以及可关闭的屏幕顶边悬停。顶边触发带固定为 3 像素高，停留 0.5 秒后才会在鼠标所在显示器上显示晾衣绳。安装包和 ARM64 构建方式见 [Windows 说明](Windows/README.md#简体中文)。
 
 关闭主窗口后，Hang Later 会从 Dock 隐藏，但菜单栏别针会让它继续在后台运行。选择「打开 Hang Later」即可恢复主窗口；选择「退出 Hang Later」才会完全退出。
 点击菜单栏别针中的「晾一个想法…」可以立即记录想法；点击「挂一个提醒…」可以安排生活事项，也可以附加会议或网页链接。

@@ -19,7 +19,7 @@ async function hangCurrentPage() {
     heading.textContent = "已经晾好。";
     status.textContent = videoFrame
       ? "已保存视频播放器画面。Hang Later 会在一秒内收下，点卡片就能回到这一页。"
-      : "已送到这台 Mac，Hang Later 会在一秒内收下。等你有空，点卡片就能回到这一页。";
+      : "已送到这台电脑，Hang Later 会在一秒内收下。等你有空，点卡片就能回到这一页。";
     await chrome.action.setBadgeText({ text: "✓", tabId: tab.id });
     await chrome.action.setBadgeBackgroundColor({ color: "#000000", tabId: tab.id });
   } catch (error) {

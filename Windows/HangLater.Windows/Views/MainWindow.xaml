@@ -1,0 +1,71 @@
+<Window x:Class="HangLater.Windows.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Hang Later" Width="1420" Height="900" MinWidth="980" MinHeight="680"
+        WindowStartupLocation="CenterScreen" Background="{StaticResource PaperBrush}"
+        Icon="/Resources/HangLater.ico">
+  <Grid>
+    <Grid.ColumnDefinitions><ColumnDefinition Width="260"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+    <Border Grid.Column="0" Background="#171717" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+      <Grid Margin="22,26"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <StackPanel Orientation="Horizontal">
+          <Border Background="#F2F1EB" Width="54" Height="54"><TextBlock Text="📌" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+          <TextBlock Text="HANG LATER" FontFamily="{StaticResource DisplayFont}" FontSize="26" FontWeight="Bold" VerticalAlignment="Center" Margin="14,0,0,0"/>
+        </StackPanel>
+        <TextBlock x:Name="SpaceLabel" Grid.Row="1" Text="MY SPACE" FontSize="11" FontWeight="Bold" Foreground="{StaticResource MutedBrush}" Margin="10,54,0,14"/>
+        <StackPanel Grid.Row="2">
+          <Button x:Name="ClotheslineButton" Click="Clothesline_Click" HorizontalContentAlignment="Left" Margin="0,0,0,7">☰　Clothesline</Button>
+          <Button x:Name="TodoButton" Click="Todo_Click" HorizontalContentAlignment="Left" Margin="0,0,0,7">☷　To-do list</Button>
+          <Button x:Name="CompletedButton" Click="Completed_Click" HorizontalContentAlignment="Left" Margin="0,0,0,7">✓　Completed</Button>
+          <Button x:Name="SpikeButton" Click="Spike_Click" HorizontalContentAlignment="Left">📌　Done Spike</Button>
+        </StackPanel>
+        <StackPanel Grid.Row="3">
+          <Button x:Name="ThemeButton" Click="Theme_Click" HorizontalContentAlignment="Left" BorderThickness="0">☀　Light</Button>
+          <Button x:Name="LanguageButton" Click="Language_Click" HorizontalContentAlignment="Left" BorderThickness="0">文　中文</Button>
+          <Button x:Name="SettingsButton" Click="Settings_Click" HorizontalContentAlignment="Left" BorderThickness="0">⚙　Settings</Button>
+          <Button x:Name="ChromeButton" Click="Chrome_Click" HorizontalContentAlignment="Left" BorderThickness="0">↪　Connect Chrome</Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+    <Grid Grid.Column="1">
+      <Grid.RowDefinitions><RowDefinition Height="88"/><RowDefinition Height="*"/><RowDefinition Height="34"/></Grid.RowDefinitions>
+      <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="36,0">
+        <Grid><TextBlock x:Name="DateLabel" VerticalAlignment="Center" Foreground="{StaticResource MutedBrush}" FontSize="13"/>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+            <TextBox x:Name="SearchBox" Width="260" TextChanged="Search_Changed" Margin="0,0,14,0"/>
+            <Button x:Name="AddButton" Click="Add_Click" Content="＋ Hang something"/>
+          </StackPanel>
+        </Grid>
+      </Border>
+      <Grid Grid.Row="1" Margin="36,32,36,24">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <Grid><StackPanel><TextBlock x:Name="PageTitle" FontFamily="{StaticResource DisplayFont}" FontSize="34" FontWeight="Bold"/><TextBlock x:Name="PageSubtitle" Foreground="{StaticResource MutedBrush}" FontSize="15" Margin="0,9,0,0"/></StackPanel>
+          <StackPanel x:Name="PageActions" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+        </Grid>
+        <Grid Grid.Row="1" Margin="0,30,0,0">
+          <Grid x:Name="ClotheslinePage">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <TextBlock x:Name="HangingNowLabel" FontWeight="Bold"/>
+            <Border Grid.Row="1" Margin="0,16,0,0" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Background="#222222" AllowDrop="True" DragOver="Drop_DragOver" Drop="Drop_Drop">
+              <Canvas x:Name="ClotheslineCanvas" ClipToBounds="True">
+                <Line X1="0" Y1="72" X2="1400" Y2="92" Stroke="#999999" StrokeThickness="2"/>
+                <Border x:Name="DropTarget" Canvas.Top="14" Canvas.Left="20" Width="260" Height="55" Background="#22383838"><Grid><Rectangle Stroke="#A6A49D" StrokeThickness="1" StrokeDashArray="5,4"/><TextBlock x:Name="DropLabel" Text="📌  DRAG SOMETHING HERE" Foreground="#DAD7CC" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Grid></Border>
+              </Canvas>
+            </Border>
+          </Grid>
+          <ScrollViewer x:Name="TodoPage" Visibility="Collapsed"><StackPanel x:Name="TodoPanel"/></ScrollViewer>
+          <Grid x:Name="CompletedPage" Visibility="Collapsed">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <ComboBox x:Name="CompletionGroupingBox" HorizontalAlignment="Right" Width="150" SelectionChanged="Grouping_Changed"><ComboBoxItem Content="Day"/><ComboBoxItem Content="Week"/><ComboBoxItem Content="Month"/></ComboBox>
+            <ScrollViewer Grid.Row="1" Margin="0,16,0,0"><StackPanel x:Name="CompletedPanel"/></ScrollViewer>
+          </Grid>
+          <Grid x:Name="SpikePage" Visibility="Collapsed"><Grid.ColumnDefinitions><ColumnDefinition Width="1.05*"/><ColumnDefinition Width=".95*"/></Grid.ColumnDefinitions>
+            <Border BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Background="#232323"><Canvas x:Name="SpikeCanvas" ClipToBounds="True"/></Border>
+            <ScrollViewer Grid.Column="1" Margin="28,0,0,0"><StackPanel><TextBlock x:Name="OnSpikeLabel" FontWeight="Bold" Margin="0,0,0,12"/><StackPanel x:Name="SpikeList"/><TextBlock x:Name="OffSpikeLabel" FontWeight="Bold" Margin="0,28,0,12"/><StackPanel x:Name="OffSpikeList"/></StackPanel></ScrollViewer>
+          </Grid>
+        </Grid>
+      </Grid>
+      <Border Grid.Row="2" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0"><TextBlock Text="●  SAVED ON THIS PC" VerticalAlignment="Center" Margin="36,0" Foreground="{StaticResource MutedBrush}" FontSize="10"/></Border>
+    </Grid>
+  </Grid>
+</Window>
