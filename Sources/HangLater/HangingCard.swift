@@ -122,7 +122,9 @@ struct HangingCard: View {
                     }
                     TaskActionsMenu(task: task, store: store) {
                         Image(systemName: "ellipsis")
+                            .foregroundStyle(completionRowInk)
                     }
+                    .tint(completionRowInk)
                     .menuStyle(.borderlessButton).menuIndicator(.hidden)
                     .fixedSize()
                     .help(store.text("更多操作", "More actions"))
