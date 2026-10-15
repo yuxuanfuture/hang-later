@@ -350,6 +350,50 @@ MainActor.assumeIsolated {
         } catch { return false }
     }
 
+    if arguments.contains("--verify-desktop-drop-routing") {
+        app.setActivationPolicy(.prohibited)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HangLater-Drop-Routing-\(UUID().uuidString)", isDirectory: true)
+        let store = AppStore(directory: directory)
+        let state = DesktopState(); state.setRevealed(true)
+        let size = NSSize(width: 1400, height: 304)
+        let host = NSHostingView(rootView: DesktopLineView(store: store, state: state)
+            .frame(width: size.width, height: size.height).background(Color.clear))
+        host.frame = NSRect(origin: .zero, size: size)
+        let window = NSWindow(contentRect: NSRect(origin: NSPoint(x: -4000, y: -4000), size: size),
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = host
+        window.orderFrontRegardless()
+        RunLoop.main.run(until: Date().addingTimeInterval(1))
+        host.layoutSubtreeIfNeeded()
+
+        var registeredDropRects: [CGRect] = []
+        func collectDropRects(from view: NSView) {
+            if !view.registeredDraggedTypes.isEmpty {
+                let appKitRect = view.convert(view.bounds, to: host)
+                registeredDropRects.append(CGRect(x: appKitRect.minX,
+                                                  y: appKitRect.minY,
+                                                  width: appKitRect.width,
+                                                  height: appKitRect.height))
+            }
+            view.subviews.forEach(collectDropRects)
+        }
+        collectDropRects(from: host)
+
+        let routed = state.dropTargetRect
+        let matchingRect = registeredDropRects.contains { actual in
+            abs(actual.minX - routed.minX) < 1 && abs(actual.minY - routed.minY) < 1
+                && abs(actual.width - routed.width) < 1 && abs(actual.height - routed.height) < 1
+        }
+        let valid = routed.width >= 219 && routed.height >= 47 && matchingRect
+        print(valid
+              ? "PASS: visible desktop target and registered drop destination share one frame"
+              : "FAIL: routed=\(routed) registered=\(registeredDropRects)")
+        window.orderOut(nil)
+        try? FileManager.default.removeItem(at: directory)
+        exit(valid ? 0 : 2)
+    }
+
     if let ideaIndex = arguments.firstIndex(of: "--render-idea-preview"),
        arguments.indices.contains(ideaIndex + 1) {
         app.setActivationPolicy(.prohibited)

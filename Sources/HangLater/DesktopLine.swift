@@ -71,6 +71,10 @@ struct DesktopLineView: View {
                     ZStack {
                         LabelPaper()
                         Palette.labelInk.opacity(dropHighlighted ? 0.18 : 0)
+                        GeometryReader { proxy in
+                            Color.clear.preference(key: DesktopDropTargetRect.self,
+                                                   value: proxy.frame(in: .named("desktopLine")))
+                        }
                     }
                 }
                 .overlay {
@@ -84,10 +88,6 @@ struct DesktopLineView: View {
                 .scaleEffect(dropHighlighted ? 1.015 : 1)
                 .animation(.easeOut(duration: 0.14), value: dropHighlighted)
                 .contentShape(Rectangle())
-                .background(GeometryReader { proxy in
-                    Color.clear.preference(key: DesktopDropTargetRect.self,
-                                           value: proxy.frame(in: .named("desktopLine")))
-                })
                 .onDrop(of: DropSupport.acceptedContentTypes, isTargeted: $targeted) {
                     store.acceptDrop($0)
                 }
