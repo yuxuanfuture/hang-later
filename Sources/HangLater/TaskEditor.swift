@@ -18,6 +18,16 @@ struct TaskEditor: View {
         MeetingLink.platform(for: url.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
+    private var editingImage: NSImage? {
+        guard let task, task.isImage else { return nil }
+        if let path = task.filePath,
+           FileManager.default.fileExists(atPath: path),
+           let original = NSImage(contentsOfFile: path) {
+            return original
+        }
+        return store.preview(task)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
@@ -31,6 +41,28 @@ struct TaskEditor: View {
                 }
                 Spacer()
                 Button { dismiss() } label: { Image(systemName: "xmark").foregroundStyle(Palette.muted) }.buttonStyle(.plain).keyboardShortcut(.cancelAction)
+            }
+            if let image = editingImage {
+                HStack(spacing: 14) {
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 132, height: 88)
+                        .background(Palette.raisedSurface)
+                        .clipShape(Rectangle())
+                        .overlay(Rectangle().stroke(Palette.border, lineWidth: 1))
+                    VStack(alignment: .leading, spacing: 7) {
+                        Label(store.text("图片", "Image"), systemImage: "photo")
+                            .font(LeLaboType.label(10, bold: true))
+                        Text(store.text("图片保存在这台 Mac 上。", "This image is saved on this Mac."))
+                            .font(LeLaboType.copy(10))
+                            .foregroundStyle(Palette.muted)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(12)
+                .background(Palette.raisedSurface.opacity(0.55), in: Rectangle())
+                .overlay(Rectangle().stroke(Palette.border, lineWidth: 1))
             }
             field(store.text("这件事叫什么", "What is it called?")) {
                 TextField(store.text("例如：继续学习那个视频", "For example: continue that course"), text: $title).focused($titleFocused)

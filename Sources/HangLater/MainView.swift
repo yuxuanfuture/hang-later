@@ -434,7 +434,17 @@ struct MainView: View {
                 Button(store.text("再晾一次", "Hang again")) { store.restore(task) }.buttonStyle(QuietButton())
                 Button { deleting = task } label: { Image(systemName: "trash").foregroundStyle(Palette.muted) }.buttonStyle(.plain).help(store.text("永久删除", "Delete permanently"))
             } else {
-                Button { store.editingTask = task } label: { Image(systemName: "ellipsis").foregroundStyle(Palette.muted) }.buttonStyle(.plain).help(store.text("编辑", "Edit"))
+                Button { store.edit(task) } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(Palette.muted)
+                        .frame(width: 38, height: 38)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(store.text("编辑", "Edit"))
+                .help(store.text("编辑", "Edit"))
+                .zIndex(2)
             }
         }.padding(16).background(Palette.raisedSurface.opacity(0.75), in: Rectangle())
             .overlay(Rectangle().stroke(Palette.border.opacity(0.7), lineWidth: 0.7))

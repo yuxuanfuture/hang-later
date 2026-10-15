@@ -218,6 +218,11 @@ final class AppStore: ObservableObject {
         }
     }
 
+    func edit(_ task: HangingTask) {
+        editingTask = tasks.first(where: { $0.id == task.id }) ?? task
+        showMainWindow?()
+    }
+
     func presentAddOptions() {
         showingAddChooser = true
         showMainWindow?()

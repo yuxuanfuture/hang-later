@@ -122,8 +122,7 @@ struct HangingCard: View {
                     }
                     Menu {
                         Button(store.text("编辑", "Edit")) {
-                            store.editingTask = task
-                            store.showMainWindow?()
+                            store.edit(task)
                         }
                         Button {
                             editReminder()
@@ -176,7 +175,7 @@ struct HangingCard: View {
         }
         .contextMenu {
             Button(store.text("继续这件事", "Continue this task")) { store.open(task) }
-            Button(store.text("编辑", "Edit")) { store.editingTask = task; store.showMainWindow?() }
+            Button(store.text("编辑", "Edit")) { store.edit(task) }
             Button {
                 editReminder()
             } label: {
