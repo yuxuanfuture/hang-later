@@ -1,6 +1,7 @@
 import Foundation
 
 public enum HangingTaskKind: String, Codable, Sendable {
+    case image
     case idea
     case reminder
     case meeting
@@ -79,7 +80,17 @@ public struct HangingTask: Codable, Identifiable, Equatable, Sendable {
         guard let url, let host = URL(string: url)?.host else { return nil }
         return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
     }
-    public var isImage: Bool { filePath.map { URL(fileURLWithPath: $0).pathExtension.lowercased() }.map(Self.imageExtensions.contains) ?? false }
+    public var isImage: Bool {
+        if kind == .image { return true }
+        if let filePath,
+           Self.imageExtensions.contains(URL(fileURLWithPath: filePath).pathExtension.lowercased()) {
+            return true
+        }
+        // v0.10.0 stored images dragged from browsers and other apps as preview-only tasks.
+        // They have no original file path, so keep recognizing that legacy representation.
+        return previewFile != nil && url == nil && filePath == nil
+            && appBundleIdentifier == nil && resumeURL == nil && kind != .idea
+    }
 
     private static let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "heic", "heif", "gif", "webp", "tif", "tiff", "bmp"]
 }

@@ -40,6 +40,7 @@ final class AppStore: ObservableObject {
     @Published var showingAddChooser = false
     @Published var showingWindowCapture = false
     @Published var editingTask: HangingTask?
+    @Published var previewingImageTask: HangingTask?
     @Published var reminderEditingTask: HangingTask?
     @Published var showingGuide = false
     @Published var message: String?
@@ -417,6 +418,11 @@ final class AppStore: ObservableObject {
         }
     }
     func open(_ task: HangingTask) {
+        if task.isImage, fullImage(for: task) != nil {
+            previewingImageTask = task
+            showMainWindow?()
+            return
+        }
         // Meeting links should be handed back to macOS first so an installed meeting app
         // can claim its universal link. This also applies to links imported from Chrome,
         // which may carry a browser-specific resume URL.
@@ -527,6 +533,15 @@ final class AppStore: ObservableObject {
             previewCache[filename] = preview; return preview
         }
         return nil
+    }
+
+    func fullImage(for task: HangingTask) -> NSImage? {
+        if let path = task.filePath,
+           FileManager.default.fileExists(atPath: path),
+           let image = NSImage(contentsOfFile: path) {
+            return image
+        }
+        return preview(task)
     }
 
     /// Older ScreenCaptureKit captures sometimes placed a 1x window in the top-left of a 2x
@@ -648,7 +663,7 @@ final class AppStore: ObservableObject {
             return
         }
         _ = add(title: title, url: nil, note: "", dueAt: nil, screenshot: data,
-                filePath: originalURL?.path)
+                filePath: originalURL?.path, kind: .image)
     }
 
     func importAppWindow(title: String, appName: String, bundleIdentifier: String, screenshot: Data) -> Bool {

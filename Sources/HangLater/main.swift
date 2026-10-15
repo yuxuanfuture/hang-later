@@ -47,6 +47,37 @@ MainActor.assumeIsolated {
         exit(valid ? 0 : 2)
     }
 
+    if arguments.contains("--verify-image-preview-routing") {
+        app.setActivationPolicy(.prohibited)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HangLater-Image-Preview-QA-\(UUID().uuidString)", isDirectory: true)
+        let store = AppStore(directory: directory)
+        let image = NSImage(size: NSSize(width: 640, height: 400))
+        image.lockFocus()
+        NSColor.systemBlue.setFill()
+        NSRect(origin: .zero, size: image.size).fill()
+        image.unlockFocus()
+        let data = image.tiffRepresentation
+        let legacyAdded = store.add(title: "Legacy dropped image", url: nil, note: "", dueAt: nil,
+                                    screenshot: data)
+        let legacy = store.pending.first
+        if let legacy { store.open(legacy) }
+        let legacyRoutesToPreview = store.editingTask == nil
+            && store.previewingImageTask?.id == legacy?.id
+
+        store.previewingImageTask = nil
+        store.importImage(image, title: "New dropped image")
+        let imported = store.pending.first(where: { $0.title == "New dropped image" })
+        if let imported { store.open(imported) }
+        let newImageRoutesToPreview = imported?.kind == .image
+            && store.editingTask == nil && store.previewingImageTask?.id == imported?.id
+        let valid = legacyAdded && legacyRoutesToPreview && newImageRoutesToPreview
+        print(valid ? "PASS: clicking a stored image opens its preview"
+                    : "FAIL: clicking a stored image did not open its preview")
+        try? FileManager.default.removeItem(at: directory)
+        exit(valid ? 0 : 2)
+    }
+
     if let thumbnailIndex = arguments.firstIndex(of: "--verify-document-thumbnail"),
        arguments.indices.contains(thumbnailIndex + 1) {
         app.setActivationPolicy(.prohibited)
@@ -282,6 +313,26 @@ MainActor.assumeIsolated {
             try png.write(to: URL(fileURLWithPath: output), options: .atomic)
             return true
         } catch { return false }
+    }
+
+    if let imagePreviewIndex = arguments.firstIndex(of: "--render-image-preview"),
+       arguments.indices.contains(imagePreviewIndex + 1) {
+        app.setActivationPolicy(.prohibited)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HangLater-Image-Preview-\(UUID().uuidString)", isDirectory: true)
+        let store = AppStore(directory: directory)
+        store.language = arguments.contains("--english") ? .en : .zh
+        store.appearance = arguments.contains("--dark") ? .dark : .light
+        let image = samplePreview(kind: "app", title: "IMAGE PREVIEW", size: NSSize(width: 1200, height: 760))
+            .flatMap(NSImage.init(data:)) ?? NSImage(size: NSSize(width: 1200, height: 760))
+        store.importImage(image, title: store.text("拖入的图片", "Dropped image"))
+        guard let task = store.pending.first else { exit(2) }
+        let rendered = ImagePreviewView(store: store, task: task)
+            .frame(width: 860, height: 650)
+        let succeeded = writeSnapshot(rendered, size: NSSize(width: 860, height: 650),
+                                      to: arguments[imagePreviewIndex + 1])
+        try? FileManager.default.removeItem(at: directory)
+        exit(succeeded ? 0 : 2)
     }
 
     if let ideaIndex = arguments.firstIndex(of: "--render-idea-preview"),

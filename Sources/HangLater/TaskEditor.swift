@@ -35,7 +35,7 @@ struct TaskEditor: View {
             field(store.text("这件事叫什么", "What is it called?")) {
                 TextField(store.text("例如：继续学习那个视频", "For example: continue that course"), text: $title).focused($titleFocused)
             }
-            if task?.filePath == nil, task?.appBundleIdentifier == nil {
+            if task?.filePath == nil, task?.appBundleIdentifier == nil, task?.isImage != true {
                 field(store.text("网页链接（可选）", "Web link (optional)")) {
                     TextField("https://…", text: $url)
                 }
@@ -125,7 +125,7 @@ struct TaskEditor: View {
             task.url = link
             task.note = note
             task.dueAt = hasDueDate ? dueAt : nil
-            if task.kind != .idea {
+            if task.kind != .idea && task.kind != .image {
                 if enteredMeetingPlatform != nil {
                     task.kind = .meeting
                 } else if hasDueDate {

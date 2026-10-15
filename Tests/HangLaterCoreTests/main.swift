@@ -78,16 +78,20 @@ check("Web and plain tasks survive restart with notes, dates, previews and captu
 check("Image files and app windows survive restart with their launch targets") { directory in
     let repository = try TaskRepository(directory: directory)
     let image = try repository.add(title: "灵感图", previewFile: "image.png",
-                                   filePath: "/tmp/inspiration.png")
+                                   filePath: "/tmp/inspiration.png", kind: .image)
+    let legacyPastedImage = try repository.add(title: "拖入的图片", previewFile: "pasted.png")
     let app = try repository.add(title: "继续写文稿", previewFile: "window.png",
                                  appBundleIdentifier: "md.obsidian", appName: "Obsidian",
                                  resumeURL: "obsidian://open?vault=Notes&file=Draft")
     let reopened = try TaskRepository(directory: directory)
-    try expect(reopened.tasks == [app, image], "Image and app task sources must survive restart")
+    try expect(reopened.tasks == [app, legacyPastedImage, image], "Image and app task sources must survive restart")
     try expect(reopened.tasks.first?.appBundleIdentifier == "md.obsidian", "App bundle ID must be retained")
     try expect(reopened.tasks.first?.resumeURL == "obsidian://open?vault=Notes&file=Draft",
                "App content restore URL must be retained")
-    try expect(reopened.tasks.last?.isImage == true, "Image file tasks must remain identifiable")
+    try expect(reopened.tasks.last?.kind == .image && reopened.tasks.last?.isImage == true,
+               "New image tasks must retain an explicit image type")
+    try expect(reopened.tasks[1].kind == nil && reopened.tasks[1].isImage,
+               "Preview-only images created by v0.10.0 must remain identifiable")
 }
 
 check("Quick Look document thumbnails cover Word, PowerPoint, Excel and CSV") { _ in
