@@ -62,7 +62,6 @@ struct MainView: View {
             )
         }
         .sheet(item: $store.editingTask) { TaskEditor(store: store, task: $0) }
-        .sheet(item: $store.previewingImageTask) { ImagePreviewView(store: store, task: $0) }
         .sheet(item: $store.reminderEditingTask) { ReminderEditorView(store: store, task: $0) }
         .sheet(isPresented: $store.showingWindowCapture) { WindowCapturePicker(store: store) }
         .sheet(isPresented: $store.showingGuide) { BrowserGuide(store: store) }

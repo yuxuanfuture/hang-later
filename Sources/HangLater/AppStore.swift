@@ -40,7 +40,6 @@ final class AppStore: ObservableObject {
     @Published var showingAddChooser = false
     @Published var showingWindowCapture = false
     @Published var editingTask: HangingTask?
-    @Published var previewingImageTask: HangingTask?
     @Published var reminderEditingTask: HangingTask?
     @Published var showingGuide = false
     @Published var message: String?
@@ -62,6 +61,7 @@ final class AppStore: ObservableObject {
     @Published private(set) var taskTypes: [TaskTypeDefinition] = []
     var showDesktopLine: (() -> Void)?
     var showMainWindow: (() -> Void)?
+    var openImagePreview: ((URL) -> Bool)?
     var onExternalDropAccepted: (() -> Void)?
     var desktopLinePreferencesChanged: ((Bool, Double) -> Void)?
     let directory: URL
@@ -418,9 +418,14 @@ final class AppStore: ObservableObject {
         }
     }
     func open(_ task: HangingTask) {
-        if task.isImage, fullImage(for: task) != nil {
-            previewingImageTask = task
-            showMainWindow?()
+        if task.isImage {
+            guard let previewURL = imagePreviewURL(for: task) else {
+                error = text("图片预览已经不可用。", "The image preview is no longer available.")
+                return
+            }
+            if !(openImagePreview?(previewURL) ?? NSWorkspace.shared.open(previewURL)) {
+                error = text("无法打开图片预览。", "The image preview could not be opened.")
+            }
             return
         }
         // Meeting links should be handed back to macOS first so an installed meeting app
@@ -535,13 +540,15 @@ final class AppStore: ObservableObject {
         return nil
     }
 
-    func fullImage(for task: HangingTask) -> NSImage? {
+    func imagePreviewURL(for task: HangingTask) -> URL? {
         if let path = task.filePath,
-           FileManager.default.fileExists(atPath: path),
-           let image = NSImage(contentsOfFile: path) {
-            return image
+           FileManager.default.fileExists(atPath: path) {
+            return URL(fileURLWithPath: path)
         }
-        return preview(task)
+        guard let filename = task.previewFile,
+              filename == URL(fileURLWithPath: filename).lastPathComponent else { return nil }
+        let storedPreview = previewDirectory.appendingPathComponent(filename)
+        return FileManager.default.fileExists(atPath: storedPreview.path) ? storedPreview : nil
     }
 
     /// Older ScreenCaptureKit captures sometimes placed a 1x window in the top-left of a 2x

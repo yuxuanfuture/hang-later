@@ -52,6 +52,10 @@ MainActor.assumeIsolated {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("HangLater-Image-Preview-QA-\(UUID().uuidString)", isDirectory: true)
         let store = AppStore(directory: directory)
+        var showedMainWindow = false
+        var openedPreviewURLs: [URL] = []
+        store.showMainWindow = { showedMainWindow = true }
+        store.openImagePreview = { openedPreviewURLs.append($0); return true }
         let image = NSImage(size: NSSize(width: 640, height: 400))
         image.lockFocus()
         NSColor.systemBlue.setFill()
@@ -62,18 +66,26 @@ MainActor.assumeIsolated {
                                     screenshot: data)
         let legacy = store.pending.first
         if let legacy { store.open(legacy) }
-        let legacyRoutesToPreview = store.editingTask == nil
-            && store.previewingImageTask?.id == legacy?.id
+        let legacyRoutesOutsideHangLater = store.editingTask == nil
+            && !showedMainWindow && openedPreviewURLs.last == legacy.flatMap(store.imagePreviewURL)
 
-        store.previewingImageTask = nil
         store.importImage(image, title: "New dropped image")
         let imported = store.pending.first(where: { $0.title == "New dropped image" })
         if let imported { store.open(imported) }
-        let newImageRoutesToPreview = imported?.kind == .image
-            && store.editingTask == nil && store.previewingImageTask?.id == imported?.id
-        let valid = legacyAdded && legacyRoutesToPreview && newImageRoutesToPreview
-        print(valid ? "PASS: clicking a stored image opens its preview"
-                    : "FAIL: clicking a stored image did not open its preview")
+        let newImageRoutesOutsideHangLater = imported?.kind == .image
+            && store.editingTask == nil && !showedMainWindow
+            && openedPreviewURLs.last == imported.flatMap(store.imagePreviewURL)
+
+        let originalURL = directory.appendingPathComponent("original-image.png")
+        try? data?.write(to: originalURL, options: .atomic)
+        store.importImage(image, title: "Image with original", originalURL: originalURL)
+        let sourceBacked = store.pending.first(where: { $0.title == "Image with original" })
+        if let sourceBacked { store.open(sourceBacked) }
+        let originalRoutesOutsideHangLater = openedPreviewURLs.last == originalURL && !showedMainWindow
+        let valid = legacyAdded && legacyRoutesOutsideHangLater
+            && newImageRoutesOutsideHangLater && originalRoutesOutsideHangLater
+        print(valid ? "PASS: clicking an image bypasses the Hang Later window"
+                    : "FAIL: clicking an image still shows the Hang Later window")
         try? FileManager.default.removeItem(at: directory)
         exit(valid ? 0 : 2)
     }
@@ -313,26 +325,6 @@ MainActor.assumeIsolated {
             try png.write(to: URL(fileURLWithPath: output), options: .atomic)
             return true
         } catch { return false }
-    }
-
-    if let imagePreviewIndex = arguments.firstIndex(of: "--render-image-preview"),
-       arguments.indices.contains(imagePreviewIndex + 1) {
-        app.setActivationPolicy(.prohibited)
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("HangLater-Image-Preview-\(UUID().uuidString)", isDirectory: true)
-        let store = AppStore(directory: directory)
-        store.language = arguments.contains("--english") ? .en : .zh
-        store.appearance = arguments.contains("--dark") ? .dark : .light
-        let image = samplePreview(kind: "app", title: "IMAGE PREVIEW", size: NSSize(width: 1200, height: 760))
-            .flatMap(NSImage.init(data:)) ?? NSImage(size: NSSize(width: 1200, height: 760))
-        store.importImage(image, title: store.text("拖入的图片", "Dropped image"))
-        guard let task = store.pending.first else { exit(2) }
-        let rendered = ImagePreviewView(store: store, task: task)
-            .frame(width: 860, height: 650)
-        let succeeded = writeSnapshot(rendered, size: NSSize(width: 860, height: 650),
-                                      to: arguments[imagePreviewIndex + 1])
-        try? FileManager.default.removeItem(at: directory)
-        exit(succeeded ? 0 : 2)
     }
 
     if let ideaIndex = arguments.firstIndex(of: "--render-idea-preview"),
