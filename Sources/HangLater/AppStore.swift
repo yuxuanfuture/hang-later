@@ -50,8 +50,7 @@ final class AppStore: ObservableObject {
     @Published var showingSettings = false
     @Published var dragTargeted = false
     @Published var draggingTaskID: UUID?
-    @Published var dragLocation: CGPoint?
-    @Published var dragSurface: DragSurface?
+    @Published private(set) var receiptDragTargetedSurface: DragSurface?
     @Published var language = AppLanguage(rawValue: UserDefaults.standard.string(forKey: "appLanguage") ?? "zh") ?? .zh
     @Published var appearance = AppAppearance(rawValue: UserDefaults.standard.string(forKey: "appAppearance") ?? "light") ?? .light
     @Published private(set) var workdayStartMinute: Int
@@ -354,26 +353,29 @@ final class AppStore: ObservableObject {
 
     func beginDragging(_ task: HangingTask, on surface: DragSurface) {
         draggingTaskID = task.id
-        dragSurface = surface
+        if receiptDragTargetedSurface != nil {
+            receiptDragTargetedSurface = nil
+        }
     }
 
     func updateDragging(at location: CGPoint, on surface: DragSurface) {
-        dragLocation = location
-        dragSurface = surface
+        guard draggingTaskID != nil else { return }
+        let nextTarget = receiptFrames[surface]?.insetBy(dx: -10, dy: -8).contains(location) == true
+            ? surface : nil
+        if receiptDragTargetedSurface != nextTarget {
+            receiptDragTargetedSurface = nextTarget
+        }
     }
 
     func isDraggingOverReceipt(on surface: DragSurface) -> Bool {
-        guard draggingTaskID != nil, dragSurface == surface, let dragLocation,
-              let frame = receiptFrames[surface] else { return false }
-        return frame.insetBy(dx: -10, dy: -8).contains(dragLocation)
+        draggingTaskID != nil && receiptDragTargetedSurface == surface
     }
 
     func finishDragging(_ task: HangingTask, on surface: DragSurface, at location: CGPoint,
                         translation: CGSize, currentCenterX: CGFloat, stageWidth: CGFloat) {
         defer {
             draggingTaskID = nil
-            dragLocation = nil
-            dragSurface = nil
+            receiptDragTargetedSurface = nil
         }
         if let frame = receiptFrames[surface], frame.insetBy(dx: -10, dy: -8).contains(location) {
             complete(task)

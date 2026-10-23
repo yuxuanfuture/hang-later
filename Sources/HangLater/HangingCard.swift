@@ -2,6 +2,11 @@ import SwiftUI
 import HangLaterCore
 import UniformTypeIdentifiers
 
+private struct HangingCardDragPose {
+    var translation: CGSize = .zero
+    var sway = 0.0
+}
+
 struct HangingCardDimensions {
     let width: CGFloat
     let previewHeight: CGFloat
@@ -40,7 +45,7 @@ struct HangingCard: View {
     @State private var appeared = false
     @State private var dropTarget = false
     @State private var isDragging = false
-    @State private var dragTranslation: CGSize = .zero
+    @State private var dragPose = HangingCardDragPose()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var accent: Color { Palette.labelAccents[abs(task.tint % 4)] }
@@ -59,20 +64,15 @@ struct HangingCard: View {
     }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isDragging || reduceMotion)) { timeline in
-            let time = timeline.date.timeIntervalSinceReferenceDate
-            let wind = isDragging && !reduceMotion ? sin(time * 7.1) : 0
-            let ripple = isDragging && !reduceMotion ? cos(time * 5.3 + Double(task.tint)) : 0
-            card(wind: wind, ripple: ripple)
-        }
+        card
     }
 
-    private func card(wind: Double, ripple: Double) -> some View {
+    private var card: some View {
         let shape = UnevenRoundedRectangle(
-            topLeadingRadius: 1 + max(0, wind) * 5,
-            bottomLeadingRadius: 1 + max(0, -ripple) * 10,
-            bottomTrailingRadius: 1 + max(0, ripple) * 9,
-            topTrailingRadius: 1 + max(0, -wind) * 6
+            topLeadingRadius: 1,
+            bottomLeadingRadius: 1,
+            bottomTrailingRadius: 1,
+            topTrailingRadius: 1
         )
 
         return VStack(spacing: -12) {
@@ -145,10 +145,10 @@ struct HangingCard: View {
                     radius: isDragging ? 20 : (hovering ? 15 : 9), x: isDragging ? 5 : 1, y: isDragging ? 15 : (hovering ? 10 : 6))
         }
         .frame(width: width)
-        .rotationEffect(.degrees((hovering && !isDragging ? 0 : tilt) + wind * (isDragging ? 2.8 : 0)), anchor: .top)
-        .rotation3DEffect(.degrees(ripple * (isDragging ? 3.2 : 0)), axis: (x: 0.15, y: 1, z: 0), anchor: .top)
+        .rotationEffect(.degrees(hovering && !isDragging ? 0 : tilt + dragPose.sway), anchor: .top)
         .scaleEffect(isDragging ? 1.025 : 1, anchor: .top)
-        .offset(x: dragTranslation.width, y: dragTranslation.height + (appeared ? (hovering && !isDragging ? -3 : 0) : -16))
+        .offset(x: dragPose.translation.width,
+                y: dragPose.translation.height + (appeared ? (hovering && !isDragging ? -3 : 0) : -16))
         .opacity(appeared ? 1 : 0)
         .animation(reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.62), value: hovering)
         .animation(reduceMotion ? nil : .spring(response: 0.24, dampingFraction: 0.78), value: isDragging)
@@ -183,12 +183,21 @@ struct HangingCard: View {
                     isDragging = true
                     store.beginDragging(task, on: surface)
                 }
-                dragTranslation = value.translation
+                if !reduceMotion {
+                    let horizontalStep = value.translation.width - dragPose.translation.width
+                    let projectedMotion = value.predictedEndTranslation.width - value.translation.width
+                    dragPose = HangingCardDragPose(
+                        translation: value.translation,
+                        sway: min(max(-(horizontalStep * 0.55 + projectedMotion * 0.015), -5.5), 5.5)
+                    )
+                } else {
+                    dragPose.translation = value.translation
+                }
                 store.updateDragging(at: value.location, on: surface)
             }
             .onEnded { value in
                 let translation = value.translation
-                dragTranslation = .zero
+                dragPose = HangingCardDragPose()
                 isDragging = false
                 store.finishDragging(task, on: surface, at: value.location,
                                      translation: translation,

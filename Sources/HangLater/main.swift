@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import HangLaterCore
 import SwiftUI
 
@@ -81,6 +82,43 @@ MainActor.assumeIsolated {
             && abs(pdfRatio - 720 / 1018) < 0.02 && abs(appRatio - 1.5) < 0.02
         print(valid ? "PASS: card sizes preserve PDF and app preview proportions within bounds"
                     : "FAIL: adaptive card dimensions are outside the expected range")
+        exit(valid ? 0 : 2)
+    }
+
+    if arguments.contains("--verify-card-drag-update-rate") {
+        app.setActivationPolicy(.prohibited)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HangLater-Card-Drag-QA-\(UUID().uuidString)", isDirectory: true)
+        let store = AppStore(directory: directory)
+        _ = store.add(title: "Drag performance", url: nil, note: "", dueAt: nil)
+        guard let task = store.pending.first else {
+            print("FAIL: could not create a card for drag performance verification")
+            exit(2)
+        }
+
+        store.setReceiptFrame(CGRect(x: 300, y: 200, width: 160, height: 90), on: .main)
+        var publishes = 0
+        let subscription = store.objectWillChange.sink { publishes += 1 }
+        store.beginDragging(task, on: .main)
+        for index in 0..<240 {
+            store.updateDragging(at: CGPoint(x: 20 + index % 120, y: 40), on: .main)
+        }
+        for index in 0..<240 {
+            store.updateDragging(at: CGPoint(x: 320 + index % 100, y: 230), on: .main)
+        }
+        let enteredReceipt = store.isDraggingOverReceipt(on: .main)
+        for index in 0..<240 {
+            store.updateDragging(at: CGPoint(x: 330 + index % 80, y: 240), on: .main)
+        }
+        store.updateDragging(at: CGPoint(x: 40, y: 40), on: .main)
+        let exitedReceipt = !store.isDraggingOverReceipt(on: .main)
+        withExtendedLifetime(subscription) {}
+
+        let valid = enteredReceipt && exitedReceipt && publishes <= 4
+        print(valid
+              ? "PASS: 721 pointer moves produced only \(publishes) store updates"
+              : "FAIL: card drag produced \(publishes) store updates")
+        try? FileManager.default.removeItem(at: directory)
         exit(valid ? 0 : 2)
     }
 
