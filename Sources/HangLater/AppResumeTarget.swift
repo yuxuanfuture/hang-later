@@ -15,6 +15,63 @@ enum AppResumeTarget {
         return nil
     }
 
+    static func resolveDocumentFile(bundleIdentifier: String, appName: String?,
+                                    windowTitle: String, candidates: [URL]? = nil) -> URL? {
+        let bundle = bundleIdentifier.lowercased()
+        let name = appName?.lowercased() ?? ""
+        guard bundle.contains("typora") || name.contains("typora"),
+              let filename = typoraFilename(from: windowTitle) else { return nil }
+        let matches = (candidates ?? spotlightFiles(named: filename)).filter { candidate in
+            var isDirectory: ObjCBool = false
+            return candidate.lastPathComponent.compare(filename, options: .caseInsensitive) == .orderedSame
+                && FileManager.default.fileExists(atPath: candidate.path, isDirectory: &isDirectory)
+                && !isDirectory.boolValue
+        }
+        return matches.max { left, right in
+            let leftDate = (try? left.resourceValues(forKeys: [.contentModificationDateKey])
+                .contentModificationDate) ?? .distantPast
+            let rightDate = (try? right.resourceValues(forKeys: [.contentModificationDateKey])
+                .contentModificationDate) ?? .distantPast
+            if leftDate != rightDate { return leftDate < rightDate }
+            return left.path < right.path
+        }
+    }
+
+    private static func typoraFilename(from windowTitle: String) -> String? {
+        var title = windowTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        for prefix in ["● ", "• ", "*"] where title.hasPrefix(prefix) {
+            title.removeFirst(prefix.count)
+            title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        for suffix in [" — Typora", " - Typora"] {
+            if title.lowercased().hasSuffix(suffix.lowercased()) {
+                title.removeLast(suffix.count)
+                title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                break
+            }
+        }
+        return title.isEmpty ? nil : title
+    }
+
+    private static func spotlightFiles(named filename: String) -> [URL] {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/mdfind")
+        process.arguments = ["-name", filename]
+        let output = Pipe()
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        let data: Data
+        do {
+            try process.run()
+            data = output.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+        } catch { return [] }
+        guard process.terminationStatus == 0,
+              let result = String(data: data, encoding: .utf8) else { return [] }
+        return result.split(whereSeparator: \.isNewline)
+            .map { URL(fileURLWithPath: String($0)) }
+    }
+
     private static func chromeOpenTab(matching title: String) -> URL? {
         let escaped = title
             .replacingOccurrences(of: "\\", with: "\\\\")

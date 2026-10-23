@@ -37,7 +37,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSScreenCaptureUsageDescription</key><string>Hang Later 需要在你选择 App 窗口时保存一张本地预览图。</string>
-  <key>NSAppleEventsUsageDescription</key><string>Hang Later 需要读取你主动晾起的 Chrome 标签页地址，以便稍后返回原页面。</string>
+  <key>NSAppleEventsUsageDescription</key><string>Hang Later 需要让 Chrome、Typora 等来源 App 重新打开你主动晾起的具体页面或文档。</string>
 </dict></plist>
 PLIST
 # Keep one local designated requirement across rebuilds so macOS can associate

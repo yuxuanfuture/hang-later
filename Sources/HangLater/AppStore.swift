@@ -463,14 +463,23 @@ final class AppStore: ObservableObject {
         }
         if let path = task.filePath {
             let fileURL = URL(fileURLWithPath: path)
-            guard FileManager.default.fileExists(atPath: path) else {
+            if FileManager.default.fileExists(atPath: path) {
+                openDocument(fileURL, withApplication: task.appBundleIdentifier)
+                return
+            }
+            if let recovered = recoverDocumentFile(for: task) {
+                openDocument(recovered, withApplication: task.appBundleIdentifier)
+                return
+            } else {
                 error = text("原文件已经移动或删除。任务和预览图仍然保留。", "The original file was moved or deleted. The task and its preview are still here.")
                 return
             }
-            if !NSWorkspace.shared.open(fileURL) { error = text("无法打开这个文件。", "This file could not be opened.") }
-            return
         }
         if let bundleIdentifier = task.appBundleIdentifier {
+            if let recovered = recoverDocumentFile(for: task) {
+                openDocument(recovered, withApplication: bundleIdentifier)
+                return
+            }
             if let recovered = AppResumeTarget.resolve(bundleIdentifier: bundleIdentifier,
                                                        appName: task.appName,
                                                        windowTitle: task.title) {
@@ -485,6 +494,72 @@ final class AppStore: ObservableObject {
         }
         editingTask = task
         showMainWindow?()
+    }
+
+    private func recoverDocumentFile(for task: HangingTask) -> URL? {
+        guard let bundleIdentifier = task.appBundleIdentifier,
+              let recovered = AppResumeTarget.resolveDocumentFile(
+                bundleIdentifier: bundleIdentifier, appName: task.appName,
+                windowTitle: task.title
+              ) else { return nil }
+        var updated = task
+        updated.filePath = recovered.path
+        _ = perform { try $0.update(updated) }
+        return recovered
+    }
+
+    private func openDocument(_ url: URL, withApplication bundleIdentifier: String?) {
+        let workspace = NSWorkspace.shared
+        guard let bundleIdentifier else {
+            if !workspace.open(url) {
+                error = text("无法打开这个文件。", "This file could not be opened.")
+            }
+            return
+        }
+        if bundleIdentifier.lowercased().contains("typora"),
+           openTyporaDocument(url, bundleIdentifier: bundleIdentifier) {
+            return
+        }
+        let running = NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier).first
+        guard let applicationURL = running?.bundleURL
+                ?? workspace.urlForApplication(withBundleIdentifier: bundleIdentifier) else {
+            error = text("没有找到原来的 App。", "The original app could not be found.")
+            return
+        }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        configuration.addsToRecentItems = true
+        configuration.createsNewApplicationInstance = false
+        workspace.open([url], withApplicationAt: applicationURL,
+                       configuration: configuration) { _, failure in
+            if let failure {
+                Task { @MainActor in
+                    self.error = self.text("无法用原来的 App 打开这个文件：",
+                                           "The original app could not open this file: ")
+                        + failure.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func openTyporaDocument(_ url: URL, bundleIdentifier: String) -> Bool {
+        let escapedPath = url.path
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        let escapedBundleIdentifier = bundleIdentifier
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        let source = """
+        tell application id "\(escapedBundleIdentifier)"
+            open POSIX file "\(escapedPath)"
+            activate
+        end tell
+        """
+        var failure: NSDictionary?
+        guard NSAppleScript(source: source)?.executeAndReturnError(&failure) != nil else {
+            return false
+        }
+        return failure == nil
     }
 
     func openPreview(_ task: HangingTask) {
@@ -732,8 +807,11 @@ final class AppStore: ObservableObject {
         recentWindowImports[key] = now
         let resumeURL = AppResumeTarget.resolve(bundleIdentifier: bundleIdentifier,
                                                 appName: appName, windowTitle: title)?.absoluteString
+        let filePath = AppResumeTarget.resolveDocumentFile(
+            bundleIdentifier: bundleIdentifier, appName: appName, windowTitle: title
+        )?.path
         let imported = add(title: title, url: nil, note: "", dueAt: nil, screenshot: screenshot,
-                           appBundleIdentifier: bundleIdentifier, appName: appName,
+                           filePath: filePath, appBundleIdentifier: bundleIdentifier, appName: appName,
                            resumeURL: resumeURL)
         if !imported { recentWindowImports[key] = nil }
         return imported

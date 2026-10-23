@@ -10,12 +10,65 @@ MainActor.assumeIsolated {
         let target = AppResumeTarget.resolve(bundleIdentifier: "md.obsidian", appName: "Obsidian",
                                              windowTitle: "Reviews - Obsidian Vault - Obsidian 1.13.7")
         let expected = "obsidian://open?vault=Obsidian%20Vault&file=Reviews"
-        if target?.absoluteString == expected {
-            print("PASS: Obsidian window title resolves to its vault and note")
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HangLater-Typora-QA-\(UUID().uuidString)", isDirectory: true)
+        let olderDirectory = directory.appendingPathComponent("older", isDirectory: true)
+        let newerDirectory = directory.appendingPathComponent("newer", isDirectory: true)
+        let filename = "Specific document.md"
+        let older = olderDirectory.appendingPathComponent(filename)
+        let newer = newerDirectory.appendingPathComponent(filename)
+        try? FileManager.default.createDirectory(at: olderDirectory, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(at: newerDirectory, withIntermediateDirectories: true)
+        try? Data("older".utf8).write(to: older)
+        try? Data("newer".utf8).write(to: newer)
+        try? FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSince1970: 1)],
+                                               ofItemAtPath: older.path)
+        try? FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSince1970: 2)],
+                                               ofItemAtPath: newer.path)
+        let typoraTarget = AppResumeTarget.resolveDocumentFile(
+            bundleIdentifier: "abnerworks.Typora", appName: "Typora",
+            windowTitle: filename, candidates: [older, newer]
+        )
+        try? FileManager.default.removeItem(at: directory)
+        if target?.absoluteString == expected && typoraTarget == newer {
+            print("PASS: Obsidian and Typora windows resolve to their exact saved content")
             exit(0)
         }
-        print("FAIL: unexpected target \(target?.absoluteString ?? "nil")")
+        print("FAIL: unexpected targets \(target?.absoluteString ?? "nil"), \(typoraTarget?.path ?? "nil")")
         exit(2)
+    }
+
+    if let typoraIndex = arguments.firstIndex(of: "--verify-typora-resume"),
+       arguments.indices.contains(typoraIndex + 1) {
+        app.setActivationPolicy(.prohibited)
+        let source = URL(fileURLWithPath: arguments[typoraIndex + 1])
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("HangLater-Typora-Resume-QA-\(UUID().uuidString)", isDirectory: true)
+        let store = AppStore(directory: directory)
+        let added = store.add(title: source.lastPathComponent, url: nil, note: "", dueAt: nil,
+                              appBundleIdentifier: "abnerworks.Typora", appName: "Typora")
+        if let task = store.tasks.first { store.open(task) }
+        let deadline = Date().addingTimeInterval(5)
+        while store.tasks.first?.filePath == nil && Date() < deadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        }
+        let savedPath = store.tasks.first?.filePath
+        let typora = NSRunningApplication.runningApplications(
+            withBundleIdentifier: "abnerworks.Typora"
+        ).first
+        let visibleWindow = ((CGWindowListCopyWindowInfo(
+            [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID
+        ) as? [[String: Any]]) ?? []).contains { window in
+            let ownerPID = window[kCGWindowOwnerPID as String] as? pid_t
+            let title = window[kCGWindowName as String] as? String
+            return ownerPID == typora?.processIdentifier && title == source.lastPathComponent
+        }
+        let valid = added && savedPath == source.path && typora != nil && visibleWindow
+        print(valid
+              ? "PASS: Typora card restored and raised \(source.lastPathComponent)"
+              : "FAIL: Typora card saved \(savedPath ?? "nil"); visible=\(visibleWindow)")
+        try? FileManager.default.removeItem(at: directory)
+        exit(valid ? 0 : 2)
     }
 
     if arguments.contains("--verify-adaptive-card-layout") {
