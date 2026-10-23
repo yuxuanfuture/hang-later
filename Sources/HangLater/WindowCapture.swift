@@ -77,8 +77,13 @@ enum WindowCaptureService {
                       bundleIdentifier: item.bundleIdentifier, pngData: data)
     }
 
-    static func captureBestWindow(bundleIdentifier: String) async throws -> Result? {
+    static func captureBestWindow(bundleIdentifier: String,
+                                  preferredWindowID: CGWindowID? = nil) async throws -> Result? {
         let windows = try await availableWindows().filter { $0.bundleIdentifier == bundleIdentifier }
+        if let preferredWindowID,
+           let preferred = windows.first(where: { $0.window.windowID == preferredWindowID }) {
+            return try await capture(preferred)
+        }
         guard let best = windows.max(by: { $0.window.frame.width * $0.window.frame.height < $1.window.frame.width * $1.window.frame.height }) else { return nil }
         return try await capture(best)
     }

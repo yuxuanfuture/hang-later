@@ -38,7 +38,7 @@ In **Settings**, you can keep the desktop clothesline visible at all times and m
 
 - **Web pages and videos** — save the title, exact URL, and visible page. When a visible video player is present, the Chrome extension crops the preview to the largest player.
 - **Images and PDFs** — drag them from Finder or another app. PDFs keep the first page as a proportional thumbnail.
-- **App windows** — drag a window title bar onto “Drag something here,” or choose a visible window from **Hang something**. Hang Later keeps a local screenshot and the app identity.
+- **App windows** — drag a window title bar onto “Drag something here,” or choose a visible window from **Hang something**. Hang Later keeps a local screenshot and the app identity, then returns a dragged window to its original position. macOS asks for Accessibility permission the first time position restoration is used.
 - **Plain tasks** — write a traditional to-do with notes and an optional reminder.
 - **Reminders** — write what you need to do and choose a time. Leave the link empty for everyday reminders, or add an online meeting link and click the card to join. Zoom, Tencent Meeting, Feishu, and Lark links are recognized automatically.
 
@@ -220,7 +220,7 @@ Hang Later 把暂时放下的事情变成桌面上的实体位置。网页、视
 
 - **网页和视频**：保存标题、完整链接和当前可见画面。Chrome 页面中有可见视频时，扩展会自动裁出最大的播放器作为预览。
 - **图片和 PDF**：从 Finder 或其他 App 直接拖入。PDF 按第一页的原始比例显示缩略图。
-- **App 窗口**：把窗口标题栏拖到 “Drag something here”，或在「晾一件事」中选择可见窗口。Hang Later 会保存本地截图和 App 身份。
+- **App 窗口**：把窗口标题栏拖到 “Drag something here”，或在「晾一件事」中选择可见窗口。Hang Later 会保存本地截图和 App 身份，然后把被拖动的窗口放回原位。首次恢复位置时，macOS 会请求“辅助功能”权限。
 - **普通待办**：记录传统任务、备注和可选提醒时间。
 - **提醒事项**：写下要做的事情并选择时间。无链接时适合生活提醒；也支持在线会议链接，点击纸片即可到达。Zoom、腾讯会议、飞书和 Lark 链接会被自动识别。
 

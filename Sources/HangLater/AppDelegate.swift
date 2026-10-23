@@ -9,6 +9,7 @@ import UniformTypeIdentifiers
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNotificationCenterDelegate {
     private struct ExternalApplicationDrag {
         let bundleIdentifier: String
+        let window: ExternalWindowSnapshot
         let startedAt: Date
         let startPoint: CGPoint
         var maximumDistance: CGFloat = 0
@@ -192,8 +193,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
            let identifier = application.bundleIdentifier,
            identifier != Bundle.main.bundleIdentifier,
            identifier != "com.apple.dock", identifier != "com.apple.WindowManager",
-           Self.isInWindowTitleBar(point, processIdentifier: application.processIdentifier) {
-            activeExternalDrag = ExternalApplicationDrag(bundleIdentifier: identifier,
+           let window = ExternalWindowPosition.snapshot(
+            at: point, processIdentifier: application.processIdentifier
+           ) {
+            activeExternalDrag = ExternalApplicationDrag(bundleIdentifier: identifier, window: window,
                                                           startedAt: now, startPoint: point)
         }
         if onStatusPin && !cancelledHover {
@@ -265,30 +268,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         } == true
     }
 
-    private static func isInWindowTitleBar(_ point: CGPoint, processIdentifier: pid_t) -> Bool {
-        guard let windowInfo = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements],
-                                                          kCGNullWindowID) as? [[String: Any]] else { return false }
-        let quartzPoint = CGPoint(x: point.x, y: CGDisplayBounds(CGMainDisplayID()).height - point.y)
-        return windowInfo.contains { info in
-            guard (info[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == processIdentifier,
-                  (info[kCGWindowLayer as String] as? NSNumber)?.intValue == 0,
-                  let boundsDictionary = info[kCGWindowBounds as String] as? NSDictionary,
-                  let bounds = CGRect(dictionaryRepresentation: boundsDictionary),
-                  bounds.width >= 180, bounds.height >= 120 else { return false }
-            // The extra inset tolerates the distance travelled between timer samples.
-            let titleBar = CGRect(x: bounds.minX - 18, y: bounds.minY - 18,
-                                  width: bounds.width + 36, height: min(82, bounds.height))
-            return titleBar.contains(quartzPoint)
-        }
-    }
-
     private func captureWindowDropIfNeeded(_ candidate: ExternalApplicationDrag) {
         // A real pasteboard drop (file, URL, image or app icon) handles itself.
         guard lastContentDropAt < candidate.startedAt else { return }
+        restoreExternalWindow(candidate.window)
         Task {
             do {
                 guard let captured = try await WindowCaptureService.captureBestWindow(
-                    bundleIdentifier: candidate.bundleIdentifier
+                    bundleIdentifier: candidate.bundleIdentifier,
+                    preferredWindowID: candidate.window.windowID
                 ) else {
                     store.error = store.text("没有找到这个 App 的可见窗口。", "No visible window was found for this app.")
                     return
@@ -307,6 +295,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                     store.error = store.text("没有截到这个 App 窗口：", "The app window could not be captured: ")
                         + error.localizedDescription
                 }
+            }
+        }
+    }
+
+    private func restoreExternalWindow(_ snapshot: ExternalWindowSnapshot) {
+        switch ExternalWindowPosition.restore(snapshot) {
+        case .restored:
+            break
+        case .permissionRequired:
+            store.notify(store.text(
+                "请允许 Hang Later 使用“辅助功能”；授权后这个窗口会自动回到原位。",
+                "Allow Hang Later in Accessibility; this window will return automatically after access is granted."
+            ))
+            retryWindowRestoration(snapshot, attemptsRemaining: 120)
+        case .unavailable:
+            store.notify(store.text(
+                "这个 App 没有允许 Hang Later 恢复窗口位置。",
+                "This app did not allow Hang Later to restore its window position."
+            ))
+        }
+    }
+
+    private func retryWindowRestoration(_ snapshot: ExternalWindowSnapshot, attemptsRemaining: Int) {
+        guard attemptsRemaining > 0 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self else { return }
+            switch ExternalWindowPosition.restore(snapshot, promptForPermission: false) {
+            case .restored:
+                self.store.notify(self.store.text("窗口已回到拖动前的位置。",
+                                                  "The window returned to its original position."))
+            case .permissionRequired:
+                self.retryWindowRestoration(snapshot, attemptsRemaining: attemptsRemaining - 1)
+            case .unavailable:
+                break
             }
         }
     }

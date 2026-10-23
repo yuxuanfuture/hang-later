@@ -63,6 +63,18 @@ check("Window capture requires a deliberate drop inside the target") { _ in
     try expect(WindowDropIntent.qualifies(maximumDistance: 80, duration: 0.5,
                                           targetDwell: 0.3, isInsideTarget: true),
                "A moved window held briefly inside the target should be captured")
+    let movedFrame = WindowDropIntent.Frame(x: 900, y: 120, width: 800, height: 600)
+    let candidates = [
+        WindowDropIntent.Frame(x: 40, y: 40, width: 500, height: 400),
+        WindowDropIntent.Frame(x: 902, y: 119, width: 800, height: 600)
+    ]
+    try expect(WindowDropIntent.restorationCandidateIndex(
+        currentFrame: movedFrame, candidates: candidates
+    ) == 1, "The moved AppKit window must be matched to the same accessibility window")
+    try expect(WindowDropIntent.restorationCandidateIndex(
+        currentFrame: movedFrame,
+        candidates: [WindowDropIntent.Frame(x: 10, y: 10, width: 200, height: 100)]
+    ) == nil, "An unrelated accessibility window must never be repositioned")
 }
 
 check("Desktop clothesline height stays inside the visible screen") { _ in
