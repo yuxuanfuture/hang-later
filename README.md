@@ -13,16 +13,28 @@
 </p>
 
 <p align="center">
-  Free and open source. Native macOS 14+.
+  Free and open source. macOS 14+ and Windows 10/11 (x64).
 </p>
 
 <p align="center">
   <a href="https://github.com/yuxuanfuture/hang-later/releases/latest/download/HangLater.dmg"><strong>Download for macOS</strong></a>
   &nbsp;·&nbsp;
+  <a href="https://github.com/yuxuanfuture/hang-later/releases/download/v0.10.1/HangLater.exe"><strong>Download for Windows</strong></a>
+  &nbsp;·&nbsp;
   <a href="#build-from-source">Build from source</a>
 </p>
 
 ![Hang Later main window](docs/images/hang-later-en.png)
+
+## Windows — new in 0.10.1
+
+Download [HangLater.exe](https://github.com/yuxuanfuture/hang-later/releases/download/v0.10.1/HangLater.exe) and run it directly. The portable x64 EXE includes .NET and all required artwork; no installer or separate runtime is needed. The optional Chrome/Edge extension is bundled and extracted locally when its connection guide is opened. This community build is not Authenticode-signed; Windows may show a publisher warning. Verify the release checksum before running it.
+
+The Windows app includes the desktop clothesline, app-window capture, reminders, custom task types, Light/Dark themes, Chinese/English, Day/Week/Month completed groups and an interactive 3D Done Spike. Use the tray pin or `Ctrl+Alt+L` to reveal the line. Tasks and previews stay in `%APPDATA%\HangLater`.
+
+Windows Done Spike shows tasks **completed today**, regardless of their creation time. The macOS workday/published-time behavior described below is unchanged. App-document restoration is best-effort: supported Obsidian/Typora targets reopen their saved document; other apps are activated or relaunched when a precise target is available.
+
+See [Windows installation, build and verification](docs/WINDOWS.md). macOS downloads and the existing `v0.10.1` tag remain intact; the Windows source is in `Windows/` on the main branch.
 
 ## Leave it where you can return to it.
 
@@ -95,11 +107,11 @@ Window capture requires macOS Screen Recording permission. The captured preview 
 
 ## Tech specs
 
- | |
+Specification | Details
 --- | ---
-Compatibility | macOS 14 Sonoma or later
+Compatibility | macOS 14 Sonoma or later; Windows 10 1809+/11 x64
 Languages | English, Chinese (Simplified)
-Built with | Swift, AppKit, SwiftUI, SceneKit, ScreenCaptureKit, PDFKit
+Built with | macOS: Swift, AppKit, SwiftUI, SceneKit, ScreenCaptureKit, PDFKit; Windows: C#, .NET 8, WPF, Win32
 Storage | Local JSON and PNG files
 Network | Page metadata and user-initiated browser capture; no analytics
 Price | Free
@@ -107,11 +119,19 @@ License | MIT
 
 ## Install
 
+**Windows:** download [HangLater.exe](https://github.com/yuxuanfuture/hang-later/releases/download/v0.10.1/HangLater.exe), keep it in a permanent folder and run it. It does not require administrator privileges. See [Windows details](docs/WINDOWS.md).
+
+**macOS:**
+
 Download [HangLater.dmg](https://github.com/yuxuanfuture/hang-later/releases/latest/download/HangLater.dmg), open it, and drag Hang Later into **Applications**. A ZIP archive is also available on the [latest release](https://github.com/yuxuanfuture/hang-later/releases/latest) page.
 
 The current community build is ad hoc signed and has not been notarized by Apple. On first launch, Control-click Hang Later in Applications, choose **Open**, then confirm **Open**. If macOS still blocks it, go to **System Settings → Privacy & Security** and choose **Open Anyway**.
 
 ## Build from source
+
+**Windows:** install the .NET 8 SDK, clone this repository, then run `./scripts/build-windows.ps1` in PowerShell. The verified standalone executable is produced at `artifacts/windows/HangLater.exe`. See [Windows development](docs/WINDOWS.md).
+
+**macOS:**
 
 Install Swift 6 through Xcode or the Command Line Tools, then run:
 
@@ -167,6 +187,8 @@ File | Role
 `HangLaterCore/` | Persistence, completion grouping, drag input, bridge manifest
 `ChromeExtension/` | Manifest V3 extension for user-initiated page capture
 `NativeHost/` | Chrome Native Messaging host
+`Windows/` | Native Windows app and isolated verification projects
+`scripts/build-windows.ps1` | Build, test and publish the portable Windows EXE
 
 ## Acknowledgments
 
@@ -195,16 +217,28 @@ The desktop clothesline interaction is inspired by [Alejandro Buján's Tendedero
 </p>
 
 <p align="center">
-  免费开源。原生支持 macOS 14 及以上。
+  免费开源。支持 macOS 14+ 与 Windows 10/11（x64）。
 </p>
 
 <p align="center">
   <a href="https://github.com/yuxuanfuture/hang-later/releases/latest/download/HangLater.dmg"><strong>直接下载 macOS 版</strong></a>
   &nbsp;·&nbsp;
+  <a href="https://github.com/yuxuanfuture/hang-later/releases/download/v0.10.1/HangLater.exe"><strong>直接下载 Windows 版</strong></a>
+  &nbsp;·&nbsp;
   <a href="#从源码构建">从源码构建</a>
 </p>
 
 ![Hang Later 主窗口](docs/images/hang-later-zh.png)
+
+## Windows — 0.10.1 新增
+
+下载 [HangLater.exe](https://github.com/yuxuanfuture/hang-later/releases/download/v0.10.1/HangLater.exe) 即可运行。这个便携式 x64 EXE 已内置 .NET 运行时和必要图片，不需要安装程序或额外运行时。可选的 Chrome/Edge 扩展也内置其中，打开连接指南时才会解压到本机。社区构建尚未进行 Authenticode 签名，Windows 可能提示未知发布者；请先校验发布页的 SHA-256。
+
+Windows 版包含桌面晾衣绳、窗口截取、提醒、任务类型、明暗主题、中英文、按日／周／月分组的完成记录，以及可旋转和移动纸片的 3D 完成钉。通过系统托盘图钉或 `Ctrl+Alt+L` 呼出晾衣绳，任务与预览仅保存在 `%APPDATA%\HangLater`。
+
+Windows 完成钉只记录**当天完成**的任务，不限制创建时间。下文 macOS 按发布时间和工作日筛选的逻辑保持不变。恢复应用内文档取决于目标信息是否可用：支持的 Obsidian/Typora 任务会尝试打开保存的文档，其他应用会尝试激活或重新启动，不能保证恢复所有应用的内部状态。
+
+安装、构建和验证见 [Windows 说明](docs/WINDOWS.md)。原有 macOS 下载及 `v0.10.1` 标签保持不变；Windows 源码位于主分支的 `Windows/`。
 
 ## 给想做的事，留一个位置。
 
@@ -277,11 +311,11 @@ Hang Later 没有账号、云同步、行为统计或遥测。任务和预览都
 
 ## 技术规格
 
- | |
+规格 | 详情
 --- | ---
-兼容性 | macOS 14 Sonoma 及以上
+兼容性 | macOS 14 Sonoma 及以上；Windows 10 1809+/11 x64
 语言 | English、简体中文
-技术栈 | Swift、AppKit、SwiftUI、SceneKit、ScreenCaptureKit、PDFKit
+技术栈 | macOS：Swift、AppKit、SwiftUI、SceneKit、ScreenCaptureKit、PDFKit；Windows：C#、.NET 8、WPF、Win32
 存储 | 本地 JSON 与 PNG 文件
 联网行为 | 网页元数据与用户主动触发的浏览器截取；无统计
 价格 | 免费
@@ -289,11 +323,19 @@ Hang Later 没有账号、云同步、行为统计或遥测。任务和预览都
 
 ## 安装
 
+**Windows：**下载 [HangLater.exe](https://github.com/yuxuanfuture/hang-later/releases/download/v0.10.1/HangLater.exe)，放在固定文件夹内直接运行，无需管理员权限。详见 [Windows 说明](docs/WINDOWS.md)。
+
+**macOS：**
+
 下载 [HangLater.dmg](https://github.com/yuxuanfuture/hang-later/releases/latest/download/HangLater.dmg)，打开后把 Hang Later 拖进「应用程序」。[最新发布页面](https://github.com/yuxuanfuture/hang-later/releases/latest)也提供 ZIP 压缩包。
 
 当前社区构建使用 ad hoc 签名，尚未通过 Apple 公证。首次启动时，请在「应用程序」中按住 Control 点击 Hang Later，选择「打开」，然后再次确认「打开」。如果仍被拦截，可进入「系统设置 → 隐私与安全性」，点击「仍要打开」。
 
 ## 从源码构建
+
+**Windows：**安装 .NET 8 SDK，克隆仓库后在 PowerShell 中运行 `./scripts/build-windows.ps1`。脚本会先验证，再生成 `artifacts/windows/HangLater.exe`。详见 [Windows 开发说明](docs/WINDOWS.md)。
+
+**macOS：**
 
 先通过 Xcode 或 Command Line Tools 安装 Swift 6，然后运行：
 
@@ -349,6 +391,8 @@ node --check ChromeExtension/background.js
 `HangLaterCore/` | 持久化、完成分组、拖入数据与桥接配置
 `ChromeExtension/` | 用户主动截取页面的 Manifest V3 扩展
 `NativeHost/` | Chrome Native Messaging 本地主机
+`Windows/` | 原生 Windows 应用与隔离验证项目
+`scripts/build-windows.ps1` | Windows 编译、验证及独立 EXE 打包
 
 ## 致谢
 

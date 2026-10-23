@@ -1,0 +1,46 @@
+name: Windows
+
+on:
+  push:
+    branches: [main]
+    paths: ['Windows/**', 'ChromeExtension/**', 'scripts/build-windows.ps1', '.github/workflows/windows.yml']
+  pull_request:
+    paths: ['Windows/**', 'ChromeExtension/**', 'scripts/build-windows.ps1', '.github/workflows/windows.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build, verify and publish portable EXE
+        shell: pwsh
+        run: ./scripts/build-windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HangLater-Windows
+          path: artifacts/windows/HangLater.exe*
+      - name: Add Windows download to existing release
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view v0.10.1 --repo "$env:GITHUB_REPOSITORY"
+          if ($LASTEXITCODE -ne 0) { throw 'Expected existing v0.10.1 release.' }
+          $existing = gh release view v0.10.1 --repo "$env:GITHUB_REPOSITORY" --json assets --jq '.assets[].name'
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read release assets.' }
+          if ('HangLater.exe' -in $existing) {
+            Write-Output 'Windows EXE already published; keeping it unchanged. Use a new version for subsequent builds.'
+          } else {
+            gh release upload v0.10.1 artifacts/windows/HangLater.exe artifacts/windows/HangLater.exe.sha256 --repo "$env:GITHUB_REPOSITORY"
+            if ($LASTEXITCODE -ne 0) { throw 'Release upload failed.' }
+          }

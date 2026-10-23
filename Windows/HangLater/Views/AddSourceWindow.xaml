@@ -1,0 +1,8 @@
+<Window x:Class="HangLater.Windows.Views.AddSourceWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Hang something" Width="510" SizeToContent="Height" WindowStartupLocation="CenterOwner" WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True" Background="Transparent" ShowInTaskbar="False" Icon="/HangLater;component/Resources/HangLater.ico">
+  <Border Name="DialogShell" Background="{DynamicResource PaperBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="12">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Name="PickerRoot" Margin="27">
+      <Grid MouseLeftButtonDown="Header_Drag"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="24"/></Grid.ColumnDefinitions><StackPanel Margin="0,0,14,0"><TextBlock Name="Heading" Style="{DynamicResource DialogHeading}"/><TextBlock Name="Subtitle" Style="{DynamicResource DialogCopy}" Margin="0,7,0,0"/></StackPanel><Button Name="CloseButton" Grid.Column="1" Style="{DynamicResource DialogIconButton}" VerticalAlignment="Top" Click="Cancel_Click" IsCancel="True"><Image Name="CloseIcon"/></Button></Grid>
+      <StackPanel Name="SourceOptions" Margin="0,20,0,0"/>
+    </StackPanel></ScrollViewer>
+  </Border>
+</Window>

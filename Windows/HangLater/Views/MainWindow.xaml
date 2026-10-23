@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window x:Class="HangLater.Windows.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:HangLater.Windows.Controls"
+        Title="Hang Later" Width="1105" Height="737" MinWidth="970" MinHeight="720"
+        WindowStartupLocation="CenterScreen" Background="{DynamicResource PaperBrush}"
+        Icon="/HangLater;component/Resources/HangLater.ico" TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
+  <FrameworkElement.Resources>
+    <ResourceDictionary>
+      <Style x:Key="FluentIcon" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="TextAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+      </Style>
+      <Style x:Key="SidebarNavigationButton" TargetType="Button">
+        <Setter Property="Height" Value="40" />
+        <Setter Property="Padding" Value="12,0" />
+        <Setter Property="Margin" Value="0,0,0,4" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="2,0,0,0" />
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="Button">
+              <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+              </Border>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Background" Value="{DynamicResource RaisedBrush}" /></Trigger>
+                <Trigger Property="IsPressed" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.72" /></Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Style>
+      <Style x:Key="SidebarActionButton" TargetType="Button" BasedOn="{StaticResource SidebarNavigationButton}">
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+      </Style>
+      <Style x:Key="PrimaryActionButton" TargetType="Button">
+        <Setter Property="Padding" Value="18,11" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PaperBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="Button">
+              <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.88" /></Trigger>
+                <Trigger Property="IsPressed" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.78" /></Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Style>
+      <Style x:Key="QuietActionButton" TargetType="Button">
+        <Setter Property="Padding" Value="13,9" />
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Background" Value="{DynamicResource RaisedBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource InkBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="Button">
+              <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}">
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.82" /></Trigger>
+                <Trigger Property="IsPressed" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.68" /></Trigger>
+                <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value="0.58" /></Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Style>
+      <Style x:Key="PlainIconButton" TargetType="Button">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="Button">
+              <Border x:Name="Chrome" Background="Transparent" Padding="6"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+              <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.72" /></Trigger></ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Style>
+      <LinearGradientBrush x:Key="ClothesRopeFadeMask" StartPoint="0,0.5" EndPoint="1,0.5">
+        <GradientStop Color="#00FFFFFF" Offset="0" /><GradientStop Color="#FFFFFFFF" Offset="0.08" />
+        <GradientStop Color="#FFFFFFFF" Offset="0.92" /><GradientStop Color="#00FFFFFF" Offset="1" />
+      </LinearGradientBrush>
+    </ResourceDictionary>
+  </FrameworkElement.Resources>
+
+  <Grid Background="{DynamicResource PaperBrush}">
+    <Grid.ColumnDefinitions><ColumnDefinition Width="218" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+    <Border Grid.Column="0" Background="{DynamicResource SidebarBrush}">
+      <Grid Margin="20,31,20,23">
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+        <StackPanel x:Name="BrandHeader" Orientation="Horizontal">
+          <Image x:Name="BrandIcon" Source="/HangLater;component/Resources/hang-later-pin-icon.png" Width="37" Height="37" Stretch="Uniform"
+                 SnapsToDevicePixels="True" RenderOptions.BitmapScalingMode="HighQuality" />
+          <TextBlock Text="HANG LATER" FontFamily="{StaticResource DisplayFont}" FontSize="20"
+                     FontWeight="Bold" FontStretch="Condensed" Foreground="{DynamicResource InkBrush}"
+                     VerticalAlignment="Center" Margin="12,0,0,0" />
+        </StackPanel>
+        <TextBlock x:Name="SpaceLabel" Grid.Row="1" Text="MY SPACE" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource MutedBrush}" Margin="12,34,0,14" />
+        <StackPanel Grid.Row="2">
+          <Button x:Name="ClotheslineButton" Style="{StaticResource SidebarNavigationButton}" Click="Clothesline_Click">
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="28" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+              <Image x:Name="ClotheslineNavIcon" Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center" Stretch="Uniform" SnapsToDevicePixels="True" RenderOptions.BitmapScalingMode="HighQuality" />
+              <TextBlock x:Name="ClotheslineNavLabel" Grid.Column="1" Text="Clothesline" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+            </Grid>
+          </Button>
+          <Button x:Name="TodoButton" Style="{StaticResource SidebarNavigationButton}" Click="Todo_Click">
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="28" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+              <Image x:Name="TodoNavIcon" Width="17" Height="14" HorizontalAlignment="Left" VerticalAlignment="Center" Stretch="Uniform" SnapsToDevicePixels="True" RenderOptions.BitmapScalingMode="HighQuality" />
+              <TextBlock x:Name="TodoNavLabel" Grid.Column="1" Text="To-do list" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+              <TextBlock x:Name="TodoNavCount" Grid.Column="2" FontSize="9" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" />
+            </Grid>
+          </Button>
+          <Button x:Name="CompletedButton" Style="{StaticResource SidebarNavigationButton}" Click="Completed_Click">
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="28" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+              <Image x:Name="CompletedNavIcon" Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center" Stretch="Uniform" SnapsToDevicePixels="True" RenderOptions.BitmapScalingMode="HighQuality" />
+              <TextBlock x:Name="CompletedNavLabel" Grid.Column="1" Text="Completed" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+            </Grid>
+          </Button>
+          <Button x:Name="SpikeButton" Style="{StaticResource SidebarNavigationButton}" Click="Spike_Click">
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="28" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+              <Image x:Name="SpikeNavIcon" Width="15" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center" Stretch="Uniform" SnapsToDevicePixels="True" RenderOptions.BitmapScalingMode="HighQuality" />
+              <TextBlock x:Name="SpikeNavLabel" Grid.Column="1" Text="Done Spike" VerticalAlignment="Center" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+              <TextBlock x:Name="SpikeNavCount" Grid.Column="2" FontSize="9" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" />
+            </Grid>
+          </Button>
+        </StackPanel>
+        <StackPanel Grid.Row="3">
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+            <Button x:Name="ThemeButton" Style="{StaticResource SidebarActionButton}" HorizontalContentAlignment="Left" Click="Theme_Click">
+              <StackPanel Orientation="Horizontal"><Image x:Name="ThemeIcon" Width="15" Height="15" VerticalAlignment="Center" Stretch="Uniform" SnapsToDevicePixels="True" RenderOptions.BitmapScalingMode="HighQuality" /><TextBlock x:Name="ThemeNavLabel" Text="Dark" Foreground="{DynamicResource MutedBrush}" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel>
+            </Button>
+            <Button x:Name="LanguageButton" Style="{StaticResource SidebarActionButton}" HorizontalContentAlignment="Left" Click="Language_Click">
+              <StackPanel Orientation="Horizontal"><Image x:Name="LanguageNavIcon" Width="16" Height="14" VerticalAlignment="Center" Stretch="Uniform" SnapsToDevicePixels="True" RenderOptions.BitmapScalingMode="HighQuality" /><TextBlock x:Name="LanguageNavLabel" Text="中文" Foreground="{DynamicResource MutedBrush}" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel>
+            </Button>
+          </StackPanel>
+          <Button x:Name="SettingsButton" Style="{StaticResource SidebarActionButton}" Click="Settings_Click" HorizontalContentAlignment="Left" Margin="0,0,0,8">
+            <StackPanel Orientation="Horizontal"><Grid Width="28"><Image x:Name="SettingsNavIcon" Width="14" Height="14" HorizontalAlignment="Left" VerticalAlignment="Center" Stretch="Uniform" SnapsToDevicePixels="True" RenderOptions.BitmapScalingMode="HighQuality" /></Grid><TextBlock x:Name="SettingsNavLabel" Text="Settings" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" /></StackPanel>
+          </Button>
+          <Button x:Name="ChromeButton" Style="{StaticResource SidebarActionButton}" Click="Chrome_Click" HorizontalContentAlignment="Left">
+            <StackPanel Orientation="Horizontal"><Grid Width="28"><Image x:Name="ChromeNavIcon" Width="17" Height="13" HorizontalAlignment="Left" VerticalAlignment="Center" Stretch="Uniform" SnapsToDevicePixels="True" RenderOptions.BitmapScalingMode="HighQuality" /></Grid><TextBlock x:Name="ChromeNavLabel" Text="Connect Chrome" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" /></StackPanel>
+          </Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Grid Grid.Column="1">
+      <Grid.RowDefinitions><RowDefinition Height="62" /><RowDefinition Height="*" /><RowDefinition Height="28" /></Grid.RowDefinitions>
+      <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="38,0">
+        <Grid>
+          <TextBlock x:Name="DateLabel" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}" FontSize="11" />
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+            <Border Width="195" Height="35" Margin="0,0,10,0" Background="{DynamicResource SearchBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0.6">
+              <Grid Margin="12,0"><Grid.ColumnDefinitions><ColumnDefinition Width="23" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                <TextBlock Text="&#xE721;" Style="{StaticResource FluentIcon}" FontSize="15" Foreground="{DynamicResource InkBrush}" Opacity="0.72" HorizontalAlignment="Left" />
+                <Grid Grid.Column="1"><TextBlock x:Name="SearchPlaceholder" Text="Find something…" FontSize="11" Foreground="{DynamicResource MutedBrush}" Opacity="0.92" VerticalAlignment="Center" IsHitTestVisible="False" /><TextBox x:Name="SearchBox" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" TextChanged="Search_Changed" /></Grid>
+              </Grid>
+            </Border>
+            <Button x:Name="DesktopLineButton" Style="{StaticResource PlainIconButton}" ToolTip="Show the desktop clothesline" Click="DesktopLine_Click"><Image x:Name="DesktopLineIcon" Width="18" Height="16" Stretch="Uniform" IsHitTestVisible="False" SnapsToDevicePixels="True" RenderOptions.BitmapScalingMode="HighQuality" /></Button>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <Grid x:Name="StandardPageLayout" Grid.Row="1" Margin="38,33,38,32">
+        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+        <Grid>
+          <StackPanel><TextBlock x:Name="PageTitle" FontFamily="{StaticResource DisplayFont}" FontSize="26" FontWeight="Bold" FontStretch="Condensed" /><TextBlock x:Name="PageSubtitle" Foreground="{DynamicResource MutedBrush}" FontSize="13" Margin="0,11,0,0" /></StackPanel>
+          <Button x:Name="AddButton" Style="{StaticResource PrimaryActionButton}" HorizontalAlignment="Right" VerticalAlignment="Center" Click="Add_Click" />
+        </Grid>
+        <Grid Grid.Row="1" Margin="0,30,0,0">
+          <Grid x:Name="ClotheslinePage">
+            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+            <Grid>
+              <StackPanel Orientation="Horizontal" VerticalAlignment="Center"><Ellipse Width="5" Height="5" Fill="{DynamicResource AccentBrush}" Margin="0,0,9,0" /><TextBlock x:Name="HangingNowTitle" Text="HANGING NOW" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" /><TextBlock x:Name="HangingNowCount" Text="0 ITEMS" FontSize="11" Foreground="{DynamicResource MutedBrush}" Margin="9,0,0,0" VerticalAlignment="Center" /></StackPanel>
+              <StackPanel x:Name="ClotheslineActions" Orientation="Horizontal" HorizontalAlignment="Right" />
+            </Grid>
+            <Border Grid.Row="1" Margin="0,23,0,0" Background="{DynamicResource StageBrush}" AllowDrop="True" ClipToBounds="True" DragOver="Drop_DragOver" Drop="Drop_Drop">
+              <Grid>
+                <Canvas x:Name="ClotheslineCanvas" ClipToBounds="True">
+                  <Path x:Name="ClotheslineRopeShadow" Stroke="#000000" StrokeThickness="1.4" Opacity="0.22" IsHitTestVisible="False" OpacityMask="{StaticResource ClothesRopeFadeMask}"><Path.Effect><BlurEffect Radius="1.2" /></Path.Effect><Path.RenderTransform><TranslateTransform Y="1.2" /></Path.RenderTransform></Path>
+                  <Path x:Name="ClotheslineRope" Stroke="#8C8C8C" StrokeThickness="1.2" IsHitTestVisible="False" OpacityMask="{StaticResource ClothesRopeFadeMask}" />
+                  <Path x:Name="ClotheslineRopeHighlight" Stroke="#FFFFFF" StrokeThickness="0.4" Opacity="0.45" IsHitTestVisible="False" OpacityMask="{StaticResource ClothesRopeFadeMask}"><Path.RenderTransform><TranslateTransform Y="-0.35" /></Path.RenderTransform></Path>
+                </Canvas>
+                <StackPanel x:Name="ClotheslineEmptyState" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,66,0,0">
+                  <Border Width="56" Height="50" Background="{DynamicResource AccentBrush}" Opacity="0.6" HorizontalAlignment="Center">
+                    <Border.OpacityMask><ImageBrush ImageSource="pack://application:,,,/HangLater;component/Resources/empty-state-leaf.png" Stretch="Uniform" /></Border.OpacityMask>
+                  </Border>
+                  <TextBlock x:Name="EmptyTitle" Text="An empty line, a lighter mind." FontFamily="{StaticResource DisplayFont}" FontSize="17" FontWeight="Bold" FontStretch="Condensed" Margin="0,16,0,0" HorizontalAlignment="Center" />
+                  <TextBlock x:Name="EmptyCopy" Text="Drag in a page or image, or capture any app window." Foreground="{DynamicResource MutedBrush}" FontSize="12" Margin="0,16,0,0" HorizontalAlignment="Center" />
+                  <Button x:Name="FirstThingButton" Style="{StaticResource QuietActionButton}" Margin="0,21,0,0" HorizontalAlignment="Center" Click="Add_Click" />
+                </StackPanel>
+              </Grid>
+            </Border>
+            <Grid Grid.Row="2" Margin="0,25,0,0">
+              <StackPanel x:Name="StatusCountSummary" Orientation="Horizontal"><StackPanel Orientation="Horizontal"><Image x:Name="PendingSummaryIcon" Width="13" Height="13" VerticalAlignment="Center" Stretch="Uniform" SnapsToDevicePixels="True" RenderOptions.BitmapScalingMode="HighQuality" /><TextBlock x:Name="PendingSummary" Foreground="{DynamicResource MutedBrush}" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel><StackPanel Orientation="Horizontal" Margin="25,0,0,0"><Image x:Name="CompletedSummaryIcon" Width="13" Height="13" VerticalAlignment="Center" Stretch="Uniform" SnapsToDevicePixels="True" RenderOptions.BitmapScalingMode="HighQuality" /><TextBlock x:Name="CompletedSummary" Foreground="{DynamicResource MutedBrush}" FontSize="11" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></StackPanel>
+              <TextBlock x:Name="LighterDesktopCopy" Text="A lighter desktop, a clearer mind." Foreground="{DynamicResource MutedBrush}" FontSize="11" HorizontalAlignment="Right" />
+            </Grid>
+          </Grid>
+          <ScrollViewer x:Name="TodoPage" Visibility="Collapsed"><StackPanel x:Name="TodoPanel" /></ScrollViewer>
+        </Grid>
+      </Grid>
+
+      <controls:CompletedArchiveView x:Name="CompletedPage" Grid.Row="1" Visibility="Collapsed" />
+
+      <!-- The hero, model and both paper sections share one scroll surface. -->
+      <ScrollViewer x:Name="SpikePage" Grid.Row="1" Visibility="Collapsed" CanContentScroll="False"
+                    Background="{DynamicResource PaperBrush}">
+        <StackPanel Margin="38,33,38,32">
+          <Grid>
+            <StackPanel>
+              <TextBlock x:Name="SpikePageTitle" FontFamily="{StaticResource DisplayFont}" FontSize="26" FontWeight="Bold" FontStretch="Condensed" />
+              <TextBlock x:Name="SpikePageSubtitle" Foreground="{DynamicResource MutedBrush}" FontSize="13" Margin="0,11,0,0" />
+            </StackPanel>
+            <Button x:Name="SpikeAddButton" Style="{StaticResource PrimaryActionButton}" HorizontalAlignment="Right" VerticalAlignment="Center" Click="Add_Click" />
+          </Grid>
+          <Grid Margin="0,30,0,0">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+            <Border x:Name="SpikeStage" Height="545" VerticalAlignment="Top" BorderBrush="{DynamicResource BorderBrush}"
+                    BorderThickness="0.8" Background="{DynamicResource StageBrush}" ClipToBounds="True"
+                    AllowDrop="True" DragOver="Spike_DragOver" Drop="Spike_Drop">
+              <Grid Margin="18">
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                <StackPanel IsHitTestVisible="False">
+                  <StackPanel Orientation="Horizontal">
+                    <controls:TrackedTextBlock x:Name="SpikeHeading" FontSize="10" FontWeight="Bold" LetterSpacing="2" VerticalAlignment="Center" />
+                    <Border Background="{DynamicResource AccentBrush}" Padding="6,3" Margin="10,0,0,0">
+                      <TextBlock x:Name="SpikeHeadingCount" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource PaperBrush}" />
+                    </Border>
+                  </StackPanel>
+                  <TextBlock x:Name="SpikeWorkdayLabel" FontSize="8" Foreground="{DynamicResource MutedBrush}" Margin="0,6,0,0" />
+                </StackPanel>
+                <controls:ReceiptSpike3DView x:Name="SpikeScene" Grid.Row="1" Margin="-12,0,-12,0" UseControlWheelForZoom="True" InitialVerticalFieldOfView="41" />
+                <StackPanel Grid.Row="2" IsHitTestVisible="False">
+                  <TextBlock x:Name="SpikeInteractionHint" FontSize="9" Foreground="{DynamicResource MutedBrush}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,8,0,14" />
+                  <TextBlock x:Name="SpikeDetailHint" FontSize="10" LineHeight="15" Foreground="{DynamicResource MutedBrush}" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="360" />
+                </StackPanel>
+              </Grid>
+            </Border>
+            <StackPanel Grid.Column="2">
+              <Grid Margin="0,0,0,10">
+                <controls:TrackedTextBlock x:Name="OnSpikeLabel" FontSize="10" FontWeight="Bold" LetterSpacing="1.4" />
+                <TextBlock x:Name="OnSpikeCount" FontSize="9" Foreground="{DynamicResource MutedBrush}" HorizontalAlignment="Right" />
+              </Grid>
+              <StackPanel x:Name="SpikeList" AllowDrop="True" DragOver="Spike_DragOver" Drop="Spike_Drop" />
+              <Grid Margin="0,22,0,10">
+                <controls:TrackedTextBlock x:Name="OffSpikeLabel" FontSize="10" FontWeight="Bold" LetterSpacing="1.4" />
+                <TextBlock x:Name="OffSpikeCount" FontSize="9" Foreground="{DynamicResource MutedBrush}" HorizontalAlignment="Right" />
+              </Grid>
+              <StackPanel x:Name="OffSpikeList" AllowDrop="True" DragOver="Spike_DragOver" Drop="Spike_Drop" />
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+      </ScrollViewer>
+
+      <Border Grid.Row="2" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="38,0">
+        <Grid><StackPanel Orientation="Horizontal" VerticalAlignment="Center"><Ellipse Width="5" Height="5" Fill="{DynamicResource AccentBrush}" Margin="0,0,9,0" /><TextBlock x:Name="SavedOnThisComputerLabel" Text="SAVED ON THIS PC" Foreground="{DynamicResource MutedBrush}" FontSize="9" VerticalAlignment="Center" /></StackPanel><TextBlock x:Name="DesktopLineShortcutLabel" Text="⌃⌥L  SHOW THE DESKTOP CLOTHESLINE" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}" FontSize="9" /></Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</Window>

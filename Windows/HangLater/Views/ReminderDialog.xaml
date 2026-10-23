@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window x:Class="HangLater.Windows.Views.ReminderDialog" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Hang a Reminder" Width="650" Height="470" WindowStartupLocation="CenterOwner" ResizeMode="NoResize" Background="{DynamicResource PaperBrush}" Icon="/Resources/HangLater.ico" xmlns:views="clr-namespace:HangLater.Windows.Views;assembly=HangLater">
+  <Grid Margin="30">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+    <TextBlock Name="Heading" Text="HANG A REMINDER" FontFamily="{StaticResource DisplayFont}" FontWeight="Bold" FontSize="24" />
+    <TextBlock Name="TitleLabel" Grid.Row="1" Margin="0,22,0,7" />
+    <TextBox Name="TitleText" Grid.Row="2" FontSize="17" />
+    <StackPanel Grid.Row="3" Margin="0,14,0,0">
+      <TextBlock Name="LinkLabel" Margin="0,0,0,7" />
+      <TextBox Name="LinkText" />
+      <TextBlock Name="LinkHint" Foreground="{DynamicResource MutedBrush}" Margin="0,8,0,0" />
+    </StackPanel>
+    <Grid Row="4" Margin="0,20,0,0">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition />
+        <ColumnDefinition Width="130" />
+      </Grid.ColumnDefinitions>
+      <DatePicker Name="DueDate" />
+      <TextBox Name="DueTime" Grid.Column="1" Margin="12,0,0,0" Text="15:00" />
+    </Grid>
+    <TextBlock Name="Footnote" Grid.Row="5" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" TextWrapping="Wrap" />
+    <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button Name="RemoveButton" Margin="0,0,8,0" Visibility="Collapsed" Click="Remove_Click" />
+      <Button Name="CancelButton" Margin="0,0,8,0" Click="Cancel_Click" />
+      <Button Name="HangButton" Click="Hang_Click" />
+    </StackPanel>
+  </Grid>
+</Window>

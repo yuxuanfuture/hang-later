@@ -8,6 +8,21 @@ __pycache__/
 *.pyo
 *.xcuserstate
 
+# Windows build products and private local development evidence.
+**/bin/
+**/obj/
+artifacts/
+*.user
+*.suo
+*.pdb
+qa-*
+Publish-*/
+publish*/
+HangLater.exe
+HangLater.before-*.exe
+verification-*.md
+DEBUG-BUILD.txt
+
 # Local design review evidence and superseded captures.
 design-qa.md
 desktop-light.png

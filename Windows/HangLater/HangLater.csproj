@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.17763.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PlatformTarget>x64</PlatformTarget>
+    <AssemblyName>HangLater</AssemblyName>
+    <RootNamespace>HangLater.Windows</RootNamespace>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\HangLater.ico" />
+    <Resource Include="Resources\le-labo-paper.png" />
+    <Resource Include="Resources\clothesline-clip-black.png" />
+    <Resource Include="Resources\clothesline-clip-white.png" />
+    <Resource Include="Resources\empty-state-leaf.png" />
+    <Resource Include="Resources\spike-document-text.png" />
+    <Resource Include="Resources\hang-later-pin-icon.png" />
+    <Resource Include="Resources\hang-later-pin-icon-dark.jpg" />
+    <Resource Include="Resources\SidebarIcons\**\*.png" />
+    <Resource Include="Resources\SettingsSectionIcons\**\*.png" />
+    <Resource Include="Resources\HangSomethingIcons\**\*.png" />
+    <Resource Include="Resources\ToolbarIcons\**\*.jpg" />
+    <Resource Include="Resources\StatusCountIcons\**\*.png" />
+    <EmbeddedResource Include="..\..\ChromeExtension\*">
+      <LogicalName>HangLater.BrowserExtension.%(Filename)%(Extension)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+</Project>
