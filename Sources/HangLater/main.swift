@@ -697,6 +697,8 @@ MainActor.assumeIsolated {
 
     let delegate = AppDelegate()
     app.delegate = delegate
-    app.setActivationPolicy(.accessory)
+    // Start as a regular app so Dock creates a full-size tile. The delegate
+    // switches to accessory mode only after the main window is closed.
+    app.setActivationPolicy(.regular)
     withExtendedLifetime(delegate) { app.run() }
 }
