@@ -3,6 +3,7 @@ import SwiftUI
 import Combine
 import HangLaterCore
 import UserNotifications
+import UniformTypeIdentifiers
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUserNotificationCenterDelegate {
@@ -223,7 +224,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
             }
             activeExternalDrag = candidate
         }
-        desktop.setExternalDragTargeted(desktop.revealed && dragging && insideDropTarget)
+        let supportedContentDrag = dragging && Self.dragPasteboardContainsSupportedContent()
+        let externalDragActive = dragging && (supportedContentDrag || activeExternalDrag != nil)
+        desktop.setExternalDragActive(desktop.revealed && externalDragActive)
+        desktop.setExternalDragTargeted(desktop.revealed && externalDragActive && insideDropTarget)
         if dragging && inPanel { receiveDropsUntil = now.addingTimeInterval(0.5) }
         if wasPointerDragging && !dragging {
             receiveDropsUntil = now.addingTimeInterval(0.5)
@@ -239,6 +243,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
                 }
             }
             activeExternalDrag = nil
+            desktop.setExternalDragActive(false)
+            desktop.setExternalDragTargeted(false)
         }
         wasPointerDragging = dragging
         // Clear parts of the transparent panel let the desktop receive clicks.
@@ -251,6 +257,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, UNUs
         let buttonInWindow = button.convert(button.bounds, to: nil)
         let buttonOnScreen = statusWindow.convertToScreen(buttonInWindow)
         return buttonOnScreen.insetBy(dx: -3, dy: -2).contains(point)
+    }
+
+    private static func dragPasteboardContainsSupportedContent() -> Bool {
+        NSPasteboard(name: .drag).types?.contains {
+            DropSupport.accepts(typeIdentifier: $0.rawValue)
+        } == true
     }
 
     private static func isInWindowTitleBar(_ point: CGPoint, processIdentifier: pid_t) -> Bool {

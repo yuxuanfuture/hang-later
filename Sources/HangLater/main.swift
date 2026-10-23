@@ -600,7 +600,11 @@ MainActor.assumeIsolated {
         app.setActivationPolicy(.prohibited)
         let (store, directory) = makePreviewStore()
         let state = DesktopState(); state.setRevealed(true)
-        if arguments.contains("--drop-targeted") { state.setExternalDragTargeted(true) }
+        if arguments.contains("--drag-active") { state.setExternalDragActive(true) }
+        if arguments.contains("--drop-targeted") {
+            state.setExternalDragActive(true)
+            state.setExternalDragTargeted(true)
+        }
         let rendered = DesktopLineView(store: store, state: state)
             .frame(width: 1400, height: 304).background(Color.clear)
         let succeeded = writeSnapshot(rendered, size: NSSize(width: 1400, height: 304),

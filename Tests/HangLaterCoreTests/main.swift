@@ -33,6 +33,21 @@ check("An application-only drag provider is accepted") { _ in
                "App bundles that do not advertise a file URL must still be accepted")
     try expect(DropSupport.acceptedContentTypes.contains(.applicationBundle),
                "The SwiftUI drop destination must register the application-bundle type")
+    try expect(DropSupport.accepts(typeIdentifier: UTType.fileURL.identifier)
+               && DropSupport.accepts(typeIdentifier: UTType.png.identifier)
+               && !DropSupport.accepts(typeIdentifier: UTType.calendarEvent.identifier),
+               "Only supported pasteboard content should activate the desktop drop target")
+}
+
+check("Desktop drop target appears only during a drag on an already revealed line") { _ in
+    try expect(!DesktopLineLayout.showsDropTarget(lineRevealed: false, externalDragActive: false),
+               "An idle hidden clothesline must not show the drop target")
+    try expect(!DesktopLineLayout.showsDropTarget(lineRevealed: true, externalDragActive: false),
+               "Revealing the clothesline only to inspect tasks must keep the drop target hidden")
+    try expect(!DesktopLineLayout.showsDropTarget(lineRevealed: false, externalDragActive: true),
+               "Dragging content must not reveal the clothesline by itself")
+    try expect(DesktopLineLayout.showsDropTarget(lineRevealed: true, externalDragActive: true),
+               "A supported drag on a revealed clothesline must show the drop target")
 }
 
 check("Window capture requires a deliberate drop inside the target") { _ in

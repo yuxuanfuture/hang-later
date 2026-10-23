@@ -28,10 +28,14 @@ final class DesktopPanel: NSPanel {
 @MainActor
 final class DesktopState: ObservableObject {
     @Published private(set) var revealed = false
+    @Published private(set) var externalDragActive = false
     @Published private(set) var externalDragTargeted = false
     var hitRects: [CGRect] = []
     var dropTargetRect: CGRect = .zero
     func setRevealed(_ value: Bool) { if revealed != value { revealed = value } }
+    func setExternalDragActive(_ value: Bool) {
+        if externalDragActive != value { externalDragActive = value }
+    }
     func setExternalDragTargeted(_ value: Bool) {
         if externalDragTargeted != value { externalDragTargeted = value }
     }
@@ -42,6 +46,12 @@ struct DesktopLineView: View {
     @ObservedObject var state: DesktopState
     @State private var targeted = false
 
+    private var dropTargetVisible: Bool {
+        DesktopLineLayout.showsDropTarget(
+            lineRevealed: state.revealed,
+            externalDragActive: state.externalDragActive || targeted
+        )
+    }
     private var dropHighlighted: Bool { targeted || state.externalDragTargeted }
 
     var body: some View {
@@ -87,11 +97,14 @@ struct DesktopLineView: View {
                 .shadow(color: .black.opacity(dropHighlighted ? 0.34 : 0.22), radius: 5, y: 2)
                 .scaleEffect(dropHighlighted ? 1.015 : 1)
                 .animation(.easeOut(duration: 0.14), value: dropHighlighted)
+                .opacity(dropTargetVisible ? 1 : 0)
+                .animation(.easeOut(duration: 0.14), value: dropTargetVisible)
                 .contentShape(Rectangle())
                 .onDrop(of: DropSupport.acceptedContentTypes, isTargeted: $targeted) {
                     store.acceptDrop($0)
                 }
                 .accessibilityLabel(store.text("把内容拖到这里", "Drop something here"))
+                .accessibilityHidden(!dropTargetVisible)
                 Spacer()
             }
             .padding(.top, 36)
@@ -105,8 +118,7 @@ struct DesktopLineView: View {
             Task { @MainActor in state.dropTargetRect = rect }
         }
         .onChange(of: targeted) { _, isTargeted in
-            store.dragTargeted = isTargeted
-            if isTargeted { state.setRevealed(true) }
+            store.dragTargeted = state.revealed && isTargeted
         }
         .onDisappear { store.dragTargeted = false }
         .offset(y: state.revealed ? 0 : -320)

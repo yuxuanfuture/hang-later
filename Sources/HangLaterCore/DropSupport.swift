@@ -14,6 +14,11 @@ public enum DropSupport {
         .fileURL, .applicationBundle, .application, .image, .url, .plainText
     ]
 
+    public static func accepts(typeIdentifier: String) -> Bool {
+        guard let type = UTType(typeIdentifier) else { return false }
+        return acceptedContentTypes.contains { type.conforms(to: $0) }
+    }
+
     public static func preferredKind(for provider: NSItemProvider) -> DropImportKind? {
         if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) { return .fileURL }
         if provider.hasItemConformingToTypeIdentifier(UTType.applicationBundle.identifier) {

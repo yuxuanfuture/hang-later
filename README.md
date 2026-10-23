@@ -46,7 +46,7 @@ Cards keep the proportions of their previews within a practical size range. Move
 
 Create and name task types in **Settings**, choose from a rich curated color palette, then assign a type while editing a task or from its `…` menu. Only the **Done** row is tinted; untyped cards keep the original paper color.
 
-The desktop clothesline includes a dashed drop target, so a file, image, link, or app window is added as soon as you release it inside the marked area.
+After the desktop clothesline is revealed, its dashed drop target appears only while you are actually dragging a supported file, image, link, or app window. Release inside the marked area to hang it; reveal the line without dragging to inspect your tasks without the target in the way.
 
 ## One click back.
 
@@ -228,7 +228,7 @@ Hang Later 把暂时放下的事情变成桌面上的实体位置。网页、视
 
 你可以在「设置」中创建并命名任务类型，从丰富的精选色板中选择颜色，再在编辑任务时或纸片的 `…` 菜单中指定类型。指定类型后，只有纸片底部的「完成」一行会带上对应颜色；未指定类型的纸片保持原来的纸张颜色。
 
-桌面晾衣绳带有清晰的虚线投放区。文件、图片、链接或 App 窗口只要在框内松开，就会加入晾衣绳。
+先用菜单栏别针或 `⌃⌥L` 唤出桌面晾衣绳；只有真正拖动文件、图片、链接或 App 窗口时，虚线投放区才会出现。在框内松开即可挂上内容，单纯查看任务时不会显示这个框。
 
 ## 点一下，直接回去。
 

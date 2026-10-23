@@ -1,6 +1,10 @@
 import Foundation
 
 public enum DesktopLineLayout {
+    public static func showsDropTarget(lineRevealed: Bool, externalDragActive: Bool) -> Bool {
+        lineRevealed && externalDragActive
+    }
+
     public static func clampedPosition(_ position: Double) -> Double {
         min(max(position, 0), 1)
     }
